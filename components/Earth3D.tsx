@@ -1,6 +1,6 @@
 import React, { useMemo, useRef } from 'react';
 import { Canvas, useFrame, extend } from '@react-three/fiber';
-import { OrbitControls, Stars } from '@react-three/drei';
+import { OrbitControls, Stars, Sphere } from '@react-three/drei';
 import * as THREE from 'three';
 import { SatellitePos } from '../types';
 
@@ -14,6 +14,7 @@ declare global {
       mesh: any;
       sphereGeometry: any;
       meshPhongMaterial: any;
+      meshStandardMaterial: any;
       instancedMesh: any;
       meshBasicMaterial: any;
       group: any;
@@ -33,46 +34,72 @@ const R = 1;
 
 interface EarthProps {
   satellites: SatellitePos[];
-  color: string;
+}
+
+const Atmosphere = () => {
+    return (
+        <mesh scale={[1.02, 1.02, 1.02]}>
+            <sphereGeometry args={[R, 64, 64]} />
+            <meshBasicMaterial 
+                color="#4f46e5" 
+                transparent 
+                opacity={0.15} 
+                side={THREE.BackSide} 
+                blending={THREE.AdditiveBlending}
+            />
+        </mesh>
+    )
 }
 
 const EarthMesh = () => {
-  const earthTexture = useMemo(() => new THREE.TextureLoader().load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg'), []);
+  // Use "Black Marble" / Earth at Night texture
+  const earthTexture = useMemo(() => new THREE.TextureLoader().load('https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/The_earth_at_night.jpg/1024px-The_earth_at_night.jpg'), []);
   
   return (
-    <mesh>
-      <sphereGeometry args={[R, 64, 64]} />
-      <meshPhongMaterial 
-        map={earthTexture} 
-        specular={new THREE.Color('grey')} 
-        shininess={10}
-      />
-    </mesh>
+    <group>
+        <mesh>
+        <sphereGeometry args={[R, 64, 64]} />
+        <meshStandardMaterial 
+            map={earthTexture} 
+            roughness={0.5}
+            metalness={0.1}
+            emissive={new THREE.Color("#333333")} // Higher base emissive
+            emissiveMap={earthTexture}
+            emissiveIntensity={1.5} // High brightness for visibility
+        />
+        </mesh>
+        <Atmosphere />
+    </group>
   );
 };
 
-const SatelliteInstances = ({ satellites, color }: { satellites: SatellitePos[], color: string }) => {
+const SatelliteInstances = ({ satellites }: { satellites: SatellitePos[] }) => {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const tempObject = new THREE.Object3D();
+  const tempColor = new THREE.Color();
 
   useFrame(() => {
     if (!meshRef.current) return;
     
     satellites.forEach((sat, i) => {
       tempObject.position.set(sat.x, sat.y, sat.z);
-      // Scale down the satellite marker
-      const scale = 0.015;
+      // Slightly larger scale for visibility against dark background
+      const scale = 0.02;
       tempObject.scale.set(scale, scale, scale);
       tempObject.updateMatrix();
       meshRef.current!.setMatrixAt(i, tempObject.matrix);
+      
+      // Set individual color if available, else white
+      meshRef.current!.setColorAt(i, tempColor.set(sat.color || '#ffffff'));
     });
     meshRef.current.instanceMatrix.needsUpdate = true;
+    if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
   });
 
   return (
     <instancedMesh ref={meshRef} args={[undefined, undefined, satellites.length]}>
       <sphereGeometry args={[1, 8, 8]} />
-      <meshBasicMaterial color={color} />
+      <meshBasicMaterial toneMapped={false} />
     </instancedMesh>
   );
 };
@@ -86,42 +113,46 @@ const OrbitLine = ({ path, color }: { path: {x:number, y:number, z:number}[], co
 
   return (
       <threeLine geometry={geometry}>
-          <lineBasicMaterial color={color} opacity={0.35} transparent />
+          <lineBasicMaterial color={color} opacity={0.8} transparent blending={THREE.AdditiveBlending} linewidth={2} />
       </threeLine>
   );
 };
 
-const Orbits = ({ satellites, color }: { satellites: SatellitePos[], color: string }) => {
+const Orbits = ({ satellites }: { satellites: SatellitePos[] }) => {
     return (
         <group>
-            {satellites.map((sat, idx) => {
+            {satellites.map((sat) => {
                 if (!sat.orbitPath || sat.orbitPath.length === 0) return null;
-                // Render complete orbital lines for all calculated paths
-                return <OrbitLine key={`orbit-${sat.id}`} path={sat.orbitPath} color={color} />;
+                return <OrbitLine key={`orbit-${sat.id}`} path={sat.orbitPath} color={sat.color || '#06b6d4'} />;
             })}
         </group>
     )
 }
 
-const Earth3D: React.FC<EarthProps> = ({ satellites, color }) => {
+const Earth3D: React.FC<EarthProps> = ({ satellites }) => {
   return (
-    <div className="w-full h-full bg-black rounded border border-slate-700 relative">
-        <Canvas camera={{ position: [0, 0, 3.5], fov: 45 }}>
-          <ambientLight intensity={0.5} />
-          <pointLight position={[10, 10, 10]} intensity={1.5} />
-          <Stars radius={300} depth={60} count={1000} factor={7} saturation={0} fade speed={1} />
+    <div className="w-full h-full bg-[#050505] rounded border border-slate-800 relative overflow-hidden shadow-2xl shadow-black">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-900/10 via-transparent to-transparent pointer-events-none z-0"></div>
+        <Canvas camera={{ position: [0, 0, 2.8], fov: 45 }} gl={{ antialias: true }}>
+          {/* Significantly increased lighting for brightness */}
+          <ambientLight intensity={2.0} /> 
+          <pointLight position={[10, 10, 10]} intensity={2.0} color="#ffffff" />
+          <pointLight position={[-10, -5, -10]} intensity={1.5} color="#ffffff" />
+          
+          <Stars radius={300} depth={60} count={2000} factor={6} saturation={0} fade speed={0.5} />
           
           <EarthMesh />
-          <SatelliteInstances satellites={satellites} color={color} />
-          <Orbits satellites={satellites} color={color} />
+          <SatelliteInstances satellites={satellites} />
+          <Orbits satellites={satellites} />
           
-          <OrbitControls enablePan={false} minDistance={1.5} maxDistance={10} />
+          <OrbitControls enablePan={false} minDistance={1.5} maxDistance={8} autoRotate autoRotateSpeed={0.5} />
         </Canvas>
         
         {/* Overlay Stats */}
-        <div className="absolute top-2 left-2 bg-slate-900/80 p-2 rounded text-xs font-mono text-cyan-400 pointer-events-none">
-            <div>ACTIVE SATS: {satellites.length}</div>
-            <div>VIEW: ECEF</div>
+        <div className="absolute bottom-4 left-4 bg-black/80 border border-slate-800 p-3 rounded text-xs font-mono text-cyan-400 pointer-events-none backdrop-blur-md">
+            <div className="text-white font-bold mb-1">QIANFAN CONSTELLATION</div>
+            <div>ACTIVE: {satellites.length}</div>
+            <div>MODE: ECEF/INERTIAL</div>
         </div>
     </div>
   );

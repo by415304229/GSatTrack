@@ -16,6 +16,7 @@ export interface SatellitePos {
   alt: number; // km
   velocity: number; // km/s
   orbitPath?: {x: number, y: number, z: number}[];
+  color?: string; // Display color for orbit and marker
 }
 
 export interface OrbitalPlaneGroup {

@@ -1,15 +1,5 @@
 import { TLEData, OrbitalPlaneGroup } from '../types';
 
-// Fallback data in case Celestrak is unreachable or for dev speed
-const MOCK_TLE_STARLINK = `
-STARLINK-1007
-1 44713U 19074A   24050.00000000  .00000000  00000-0  00000-0 0  9999
-2 44713  53.0500 120.0000 0001000   0.0000 100.0000 15.06400000    15
-STARLINK-1008
-1 44714U 19074B   24050.00000000  .00000000  00000-0  00000-0 0  9999
-2 44714  53.0500 121.0000 0001000   0.0000 100.0000 15.06400000    15
-`;
-
 const parseTLE = (data: string): TLEData[] => {
   const lines = data.split('\n').map(l => l.trim()).filter(l => l.length > 0);
   const tles: TLEData[] = [];
@@ -30,61 +20,77 @@ const parseTLE = (data: string): TLEData[] => {
 export const fetchSatelliteGroups = async (): Promise<OrbitalPlaneGroup[]> => {
   const groups: OrbitalPlaneGroup[] = [];
 
+  // Primary Source: Active Satellites containing Qianfan
+  // URL provided by user for active group
   const sources = [
     { 
-      id: 'starlink', 
-      name: 'Starlink Group', 
-      description: 'SpaceX Starlink Constellation subset', 
-      url: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle' 
-    },
-    { 
-      id: 'gps', 
-      name: 'GPS Ops', 
-      description: 'Global Positioning System Operational', 
-      url: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=tle' 
-    },
-    { 
-      id: 'stations', 
-      name: 'Space Stations', 
-      description: 'ISS, CSS, and other stations', 
-      url: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle' 
+      id: 'qianfan', 
+      name: 'Qianfan (G60)', 
+      description: 'Thousand Sails Constellation', 
+      url: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle'
     }
   ];
 
-  for (const source of sources) {
-    try {
-      const response = await fetch(source.url);
-      if (!response.ok) throw new Error('Network response was not ok');
-      const text = await response.text();
-      const tles = parseTLE(text);
-      
-      // Ensure at least 50 for Starlink, others might be smaller but we take all available
-      // Optimization: Take max 100 for performance if list is huge
-      const limitedTles = tles.slice(0, 150);
-      
-      groups.push({
-        id: source.id,
-        name: source.name,
-        description: source.description,
-        tles: limitedTles
-      });
-    } catch (error) {
-      console.warn(`Failed to fetch ${source.name}, using mock/empty`, error);
-      // Only add fallback if it's starlink to ensure we have something
-      if (source.id === 'starlink') {
-          // Generate synthetic TLEs to meet the "no fewer than 50" requirement if fetch fails
-          const synthetic = [];
-          for(let i=0; i<60; i++) {
-              synthetic.push({
-                  name: `SIM-SAT-${i+1}`,
-                  line1: `1 9999${i}U 23001A   24050.00000000  .00010000  00000-0  10000-3 0  9999`,
-                  line2: `2 9999${i}  53.0000 ${(i * 6) % 360}.0000 0010000   0.0000  90.0000 15.10000000    1${i}`,
-                  satId: `9999${i}`
-              });
-          }
-          groups.push({ ...source, tles: synthetic });
-      }
+  try {
+    for (const source of sources) {
+        const response = await fetch(source.url);
+        if (!response.ok) throw new Error(`Failed to fetch ${source.name}`);
+        const text = await response.text();
+        let tles = parseTLE(text);
+        
+        // Filter specifically for Qianfan satellites
+        if (source.id === 'qianfan') {
+            tles = tles.filter(tle => 
+                tle.name.toUpperCase().includes('QIANFAN') || 
+                tle.name.toUpperCase().includes('THOUSAND SAILS')
+            );
+        }
+        
+        // Fallback mock data if fetch returns empty (e.g. if constellation name changes or strictly filtering yields 0)
+        if (tles.length === 0) {
+            console.warn('No Qianfan satellites found in active list, using mock simulation data');
+             // Create some dummy TLEs orbiting in a train for demo purposes
+             const baseId = 90000;
+             for(let i=0; i<50; i++) {
+                 tles.push({
+                     name: `QIANFAN-${i+1} (SIM)`,
+                     satId: (baseId + i).toString(),
+                     // Mock TLE for a polar orbit typical of this constellation
+                     line1: `1 ${baseId+i}U 24001A   24200.00000000  .00000000  00000-0  00000-0 0  9991`,
+                     line2: `2 ${baseId+i}  89.0000 120.0000 0010000   0.0000 ${((i*7.2)%360).toFixed(4)} 15.00000000    11`
+                 })
+             }
+        }
+
+        groups.push({
+            id: source.id,
+            name: source.name,
+            description: source.description,
+            tles: tles
+        });
     }
+  } catch (err) {
+    console.error("Error fetching satellite data:", err);
+    // Fallback if offline/error
+    groups.push({
+        id: 'qianfan',
+        name: 'Qianfan (G60) [OFFLINE]',
+        description: 'Thousand Sails Constellation',
+        tles: [
+            {
+                name: "QIANFAN-DEMO-1",
+                line1: "1 57000U 23001A   24001.00000000  .00000000  00000-0  00000-0 0  9999",
+                line2: "2 57000  89.0000 150.0000 0010000  10.0000  20.0000 15.00000000    11",
+                satId: "57000"
+            },
+             {
+                name: "QIANFAN-DEMO-2",
+                line1: "1 57001U 23001A   24001.00000000  .00000000  00000-0  00000-0 0  9999",
+                line2: "2 57001  89.0000 160.0000 0010000  10.0000  20.0000 15.00000000    11",
+                satId: "57001"
+            }
+        ]
+    });
   }
 
   return groups;

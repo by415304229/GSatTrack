@@ -3,18 +3,17 @@ import { SatellitePos } from '../types';
 
 interface Map2DProps {
   satellites: SatellitePos[];
-  color: string;
 }
 
-const Map2D: React.FC<Map2DProps> = ({ satellites, color }) => {
+const Map2D: React.FC<Map2DProps> = ({ satellites }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
 
-  // Load Earth Map Image
+  // Load Earth Map Image (Night Version)
   useEffect(() => {
     const img = new Image();
-    // Using a reliable equirectangular earth map
-    img.src = 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Equirectangular_projection_SW.jpg/1024px-Equirectangular_projection_SW.jpg'; 
+    // Black Marble / Earth at Night texture
+    img.src = 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/The_earth_at_night.jpg/1024px-The_earth_at_night.jpg'; 
     img.onload = () => {
       imageRef.current = img;
     };
@@ -39,27 +38,36 @@ const Map2D: React.FC<Map2DProps> = ({ satellites, color }) => {
 
       // Draw Background
       if (imageRef.current) {
-        ctx.globalAlpha = 0.6;
+        // Removed dark filter, added slight brightness boost
+        ctx.filter = 'brightness(1.2) contrast(1.1)'; 
         ctx.drawImage(imageRef.current, 0, 0, rect.width, rect.height);
-        ctx.globalAlpha = 1.0;
+        ctx.filter = 'none';
       } else {
         // Fallback grid
-        ctx.fillStyle = '#0f172a';
+        ctx.fillStyle = '#020617';
         ctx.fillRect(0, 0, rect.width, rect.height);
-        ctx.strokeStyle = '#334155';
-        ctx.beginPath();
-        for(let i=0; i<rect.width; i+=40) { ctx.moveTo(i,0); ctx.lineTo(i, rect.height); }
-        for(let i=0; i<rect.height; i+=40) { ctx.moveTo(0,i); ctx.lineTo(rect.width, i); }
-        ctx.stroke();
       }
 
+      // Draw Grid Lines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for(let x=0; x<=rect.width; x+=rect.width/12) { ctx.moveTo(x, 0); ctx.lineTo(x, rect.height); }
+      for(let y=0; y<=rect.height; y+=rect.height/6) { ctx.moveTo(0, y); ctx.lineTo(rect.width, y); }
+      ctx.stroke();
+
       // Draw Orbit Lines (Ground Tracks)
-      ctx.globalAlpha = 0.4;
-      ctx.strokeStyle = color;
+      ctx.globalAlpha = 0.8;
       ctx.lineWidth = 1.5;
 
       satellites.forEach(sat => {
         if (!sat.orbitPath || sat.orbitPath.length === 0) return;
+        
+        // Use satellite specific color
+        const color = sat.color || '#06b6d4';
+        ctx.strokeStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 3; // Subtle glow
 
         ctx.beginPath();
         let firstPoint = true;
@@ -67,12 +75,10 @@ const Map2D: React.FC<Map2DProps> = ({ satellites, color }) => {
 
         sat.orbitPath.forEach((p) => {
             // Convert Three.js/ECEF coords to Lat/Lon
-            // Three coordinates from satMath: x=ECEF.x, y=ECEF.z, z=-ECEF.y
             const ecefX = p.x;
             const ecefY = -p.z;
             const ecefZ = p.y;
 
-            // Calculate spherical coordinates (Geocentric)
             const r = Math.sqrt(ecefX * ecefX + ecefY * ecefY + ecefZ * ecefZ);
             if (r === 0) return;
 
@@ -82,9 +88,6 @@ const Map2D: React.FC<Map2DProps> = ({ satellites, color }) => {
             const lat = (latRad * 180) / Math.PI;
             const lon = (lonRad * 180) / Math.PI;
 
-            // Project to Map
-            // Lon: -180 to 180 -> 0 to width
-            // Lat: 90 to -90 -> 0 to height
             const x = ((lon + 180) / 360) * rect.width;
             const y = ((90 - lat) / 180) * rect.height;
 
@@ -93,9 +96,8 @@ const Map2D: React.FC<Map2DProps> = ({ satellites, color }) => {
                 firstPoint = false;
             } else {
                 // Handle Date Line crossing
-                // If distance between points is > 50% of map width, we wrapped
                 if (Math.abs(x - prevX) > rect.width * 0.5) {
-                    ctx.moveTo(x, y); // Skip the line across screen
+                    ctx.moveTo(x, y); 
                 } else {
                     ctx.lineTo(x, y);
                 }
@@ -103,37 +105,51 @@ const Map2D: React.FC<Map2DProps> = ({ satellites, color }) => {
             prevX = x;
         });
         ctx.stroke();
+        ctx.shadowBlur = 0; // Reset shadow for next
       });
 
       ctx.globalAlpha = 1.0;
 
       // Draw Satellites
       satellites.forEach(sat => {
-        // Map lat/lon to x/y
         const x = ((sat.lon + 180) / 360) * rect.width;
         const y = ((90 - sat.lat) / 180) * rect.height;
 
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.arc(x, y, 3, 0, Math.PI * 2);
-        ctx.fill();
+        // Glow
+        const color = sat.color || '#ffffff';
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 6;
         
-        // Label (optional, low opacity)
-        ctx.fillStyle = 'rgba(255,255,255,0.8)';
-        ctx.font = '10px monospace';
-        if (satellites.length < 20 || Math.random() > 0.95) { // Show some labels
-            ctx.fillText(sat.name, x + 5, y);
+        ctx.fillStyle = '#ffffff'; // Center dot is white
+        ctx.beginPath();
+        ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Colored ring
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.shadowBlur = 0;
+        
+        // Label (optional)
+        if (satellites.length < 15) {
+            ctx.fillStyle = color;
+            ctx.font = 'bold 10px monospace';
+            ctx.fillText(sat.name, x + 8, y + 3);
         }
       });
     };
 
     draw();
-  }, [satellites, color]);
+  }, [satellites]);
 
   return (
     <canvas 
       ref={canvasRef} 
-      className="w-full h-full rounded bg-slate-900 border border-slate-700"
+      className="w-full h-full rounded bg-[#0b1120] border border-slate-800 shadow-inner"
     />
   );
 };

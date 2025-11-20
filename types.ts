@@ -15,7 +15,7 @@ export interface SatellitePos {
   lon: number;
   alt: number; // km
   velocity: number; // km/s
-  orbitPath?: {x: number, y: number, z: number}[];
+  orbitPath?: {x: number, y: number, z: number, lat: number, lon: number}[];
   color?: string; // Display color for orbit and marker
   tle?: TLEData; // Full TLE data for detail view
 }

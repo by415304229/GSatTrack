@@ -54,9 +54,10 @@ export const getSatellitePosition = (tle: TLEData, date: Date): SatellitePos | n
 };
 
 // Calculates the Ground Track (ECEF path accounting for Earth rotation)
-export const calculateOrbitPath = (tle: TLEData, startTime: Date = new Date(), steps: number = 360): {x:number, y:number, z:number}[] => {
+// Now includes Geodetic Lat/Lon for precise 2D plotting
+export const calculateOrbitPath = (tle: TLEData, startTime: Date = new Date(), steps: number = 360): {x:number, y:number, z:number, lat:number, lon:number}[] => {
     const satrec = satellite.twoline2satrec(tle.line1, tle.line2);
-    const points: {x:number, y:number, z:number}[] = [];
+    const points: {x:number, y:number, z:number, lat:number, lon:number}[] = [];
     
     const meanMotion = satrec.no * 1440 / (2 * Math.PI); // revs/day
     if (meanMotion === 0) return [];
@@ -75,15 +76,21 @@ export const calculateOrbitPath = (tle: TLEData, startTime: Date = new Date(), s
         if (pv.position && typeof pv.position !== 'boolean') {
              const pEci = pv.position as satellite.EciVec3<number>;
              
-             // CRITICAL FIX: Use GMST at time `t`, not `now`. 
-             // This accounts for Earth's rotation, keeping the satellite ON the line in ECEF frame.
+             // CRITICAL: Use GMST at time `t`
              const gmstAtTime = satellite.gstime(t);
+             
+             // 1. ECEF for 3D
              const pEcf = satellite.eciToEcf(pEci, gmstAtTime);
+             
+             // 2. Geodetic for 2D (Matches satellite marker projection exactly)
+             const pGd = satellite.eciToGeodetic(pEci, gmstAtTime);
              
              points.push({
                  x: pEcf.x * scale,
                  y: pEcf.z * scale,
-                 z: -pEcf.y * scale
+                 z: -pEcf.y * scale,
+                 lat: satellite.degreesLat(pGd.latitude),
+                 lon: satellite.degreesLong(pGd.longitude)
              });
         }
     }

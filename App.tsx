@@ -19,7 +19,7 @@ const PlaneMonitor = ({ group, active }: { group: OrbitalPlaneGroup; active: boo
   const [selectedSatId, setSelectedSatId] = useState<string | null>(null);
   
   // Cache for expensive orbit paths
-  const orbitCacheRef = useRef<Record<string, {path: {x:number, y:number, z:number}[], lastUpdated: number}>>({});
+  const orbitCacheRef = useRef<Record<string, {path: {x:number, y:number, z:number, lat:number, lon:number}[], lastUpdated: number}>>({});
   
   useEffect(() => {
     if (!active) return;

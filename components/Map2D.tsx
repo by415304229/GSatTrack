@@ -47,10 +47,11 @@ const Tooltip = ({ data }: { data: HoverData }) => {
 
 const Map2D: React.FC<Map2DProps> = ({ satellites, onSatClick }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const [hoverData, setHoverData] = useState<HoverData | null>(null);
 
-  // Load Earth Map Image (Reliable Three.js texture)
+  // Load Earth Map Image
   useEffect(() => {
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -58,46 +59,72 @@ const Map2D: React.FC<Map2DProps> = ({ satellites, onSatClick }) => {
     img.onload = () => {
       imageRef.current = img;
     };
-    img.onerror = () => {
-        console.warn("Failed to load 2D map texture");
-    }
   }, []);
 
+  // Main Render Loop
+  // Handles resizing and drawing in the same frame to prevent sync issues
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
+    
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Handle High DPI
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
+    let animationFrameId: number;
 
-    const draw = () => {
-      // Clear
-      ctx.clearRect(0, 0, rect.width, rect.height);
+    const render = () => {
+      // 1. Dynamic Resizing (The "Game Loop" pattern)
+      // Check the actual display size of the canvas in CSS pixels
+      const displayWidth = container.clientWidth;
+      const displayHeight = container.clientHeight;
+
+      if (displayWidth === 0 || displayHeight === 0) {
+          // Element is hidden or collapsed
+          animationFrameId = requestAnimationFrame(render);
+          return;
+      }
+
+      // Check device pixel ratio
+      const dpr = window.devicePixelRatio || 1;
+      
+      // Calculate required internal resolution
+      const requiredWidth = Math.floor(displayWidth * dpr);
+      const requiredHeight = Math.floor(displayHeight * dpr);
+
+      // Only resize if mismatch exists (prevents unnecessary buffer clearing)
+      if (canvas.width !== requiredWidth || canvas.height !== requiredHeight) {
+          canvas.width = requiredWidth;
+          canvas.height = requiredHeight;
+          // Important: Context scale must be reset after resize
+          ctx.scale(dpr, dpr);
+      }
+
+      // 2. Drawing
+      // Use display dimensions for drawing logic
+      const w = displayWidth;
+      const h = displayHeight;
+
+      // Clear (using logical pixels)
+      ctx.clearRect(0, 0, w, h);
 
       // Draw Background
       if (imageRef.current) {
-        ctx.drawImage(imageRef.current, 0, 0, rect.width, rect.height);
+        ctx.drawImage(imageRef.current, 0, 0, w, h);
       } else {
-        // Fallback
         ctx.fillStyle = '#101827';
-        ctx.fillRect(0, 0, rect.width, rect.height);
+        ctx.fillRect(0, 0, w, h);
       }
 
       // Draw Grid Lines
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      for(let x=0; x<=rect.width; x+=rect.width/12) { ctx.moveTo(x, 0); ctx.lineTo(x, rect.height); }
-      for(let y=0; y<=rect.height; y+=rect.height/6) { ctx.moveTo(0, y); ctx.lineTo(rect.width, y); }
+      for(let x=0; x<=w; x+=w/12) { ctx.moveTo(x, 0); ctx.lineTo(x, h); }
+      for(let y=0; y<=h; y+=h/6) { ctx.moveTo(0, y); ctx.lineTo(w, y); }
       ctx.stroke();
 
-      // Draw Orbit Lines (Ground Tracks)
+      // Draw Orbit Lines
       ctx.globalAlpha = 0.6;
       ctx.lineWidth = 1.5;
 
@@ -112,21 +139,8 @@ const Map2D: React.FC<Map2DProps> = ({ satellites, onSatClick }) => {
         let prevX = 0;
 
         sat.orbitPath.forEach((p) => {
-            const ecefX = p.x;
-            const ecefZ = p.y; // Three Y is North (Z in ECEF)
-            const ecefY = -p.z; // Three Z is -East (Y in ECEF)
-
-            const r = Math.sqrt(ecefX * ecefX + ecefY * ecefY + ecefZ * ecefZ);
-            if (r === 0) return;
-
-            const latRad = Math.asin(ecefZ / r);
-            const lonRad = Math.atan2(ecefY, ecefX);
-
-            const lat = (latRad * 180) / Math.PI;
-            const lon = (lonRad * 180) / Math.PI;
-
-            const x = ((lon + 180) / 360) * rect.width;
-            const y = ((90 - lat) / 180) * rect.height;
+            const x = ((p.lon + 180) / 360) * w;
+            const y = ((90 - p.lat) / 180) * h;
 
             if (firstPoint) {
                 ctx.moveTo(x, y);
@@ -134,7 +148,7 @@ const Map2D: React.FC<Map2DProps> = ({ satellites, onSatClick }) => {
             } else {
                 // Handle Date Line crossing
                 const dist = Math.abs(x - prevX);
-                if (dist > rect.width * 0.5) {
+                if (dist > w * 0.5) {
                     ctx.moveTo(x, y); 
                 } else {
                     ctx.lineTo(x, y);
@@ -149,12 +163,11 @@ const Map2D: React.FC<Map2DProps> = ({ satellites, onSatClick }) => {
 
       // Draw Satellites
       satellites.forEach(sat => {
-        const x = ((sat.lon + 180) / 360) * rect.width;
-        const y = ((90 - sat.lat) / 180) * rect.height;
+        const x = ((sat.lon + 180) / 360) * w;
+        const y = ((90 - sat.lat) / 180) * h;
 
         const color = sat.color || '#ffffff';
         
-        // Hover Effect Highlight
         const isHovered = hoverData && hoverData.sat.id === sat.id;
         
         // Marker
@@ -173,39 +186,47 @@ const Map2D: React.FC<Map2DProps> = ({ satellites, onSatClick }) => {
         ctx.stroke();
         ctx.shadowBlur = 0;
       });
+
+      // Keep looping
+      animationFrameId = requestAnimationFrame(render);
     };
 
-    requestAnimationFrame(draw);
-  }, [satellites, hoverData]);
+    // Start Loop
+    render();
 
-  // Helper to find satellite at mouse pos
+    // Cleanup
+    return () => {
+        cancelAnimationFrame(animationFrameId);
+    };
+  }, [satellites, hoverData]); // We do NOT depend on dimensions state anymore
+
+  // Interaction Handlers
   const findSatelliteAtPos = (clientX: number, clientY: number): HoverData | null => {
       const canvas = canvasRef.current;
-      if (!canvas) return null;
+      const container = containerRef.current;
+      if (!canvas || !container) return null;
 
-      const rect = canvas.getBoundingClientRect();
+      const rect = container.getBoundingClientRect();
       const x = clientX - rect.left;
       const y = clientY - rect.top;
       
+      // Use logical dimensions
+      const w = rect.width;
+      const h = rect.height;
+      
       for (const sat of satellites) {
-          const satX = ((sat.lon + 180) / 360) * rect.width;
-          const satY = ((90 - sat.lat) / 180) * rect.height;
-          
+          const satX = ((sat.lon + 180) / 360) * w;
+          const satY = ((90 - sat.lat) / 180) * h;
+          // Simple Euclidean distance check
           const dist = Math.sqrt(Math.pow(x - satX, 2) + Math.pow(y - satY, 2));
           
-          // Detection threshold (10px radius)
           if (dist < 10) {
-              return {
-                  sat,
-                  x: clientX,
-                  y: clientY
-              };
+              return { sat, x: clientX, y: clientY };
           }
       }
       return null;
   }
 
-  // Mouse Interaction Handler
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
       const found = findSatelliteAtPos(e.clientX, e.clientY);
       setHoverData(found);
@@ -226,16 +247,17 @@ const Map2D: React.FC<Map2DProps> = ({ satellites, onSatClick }) => {
   };
 
   return (
-    <>
+    <div ref={containerRef} className="w-full h-full relative overflow-hidden">
         <canvas 
           ref={canvasRef} 
-          className="w-full h-full rounded bg-[#0f172a] border border-slate-800 shadow-inner cursor-crosshair"
+          className="block w-full h-full rounded bg-[#0f172a] border border-slate-800 shadow-inner cursor-crosshair absolute inset-0"
+          style={{ width: '100%', height: '100%' }}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
           onClick={handleClick}
         />
         {hoverData && <Tooltip data={hoverData} />}
-    </>
+    </div>
   );
 };
 

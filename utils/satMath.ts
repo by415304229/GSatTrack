@@ -20,7 +20,6 @@ export const getSatellitePosition = (tle: TLEData, date: Date): SatellitePos | n
   const gmst = satellite.gstime(date);
   
   // ECI -> ECEF (Earth Centered, Earth Fixed)
-  // This allows us to keep the Earth texture static in the 3D scene
   const positionEcf = satellite.eciToEcf(positionEci, gmst);
   const positionGd = satellite.eciToGeodetic(positionEci, gmst);
 
@@ -53,30 +52,32 @@ export const getSatellitePosition = (tle: TLEData, date: Date): SatellitePos | n
   };
 };
 
-export const calculateOrbitPath = (tle: TLEData, steps: number = 180): {x:number, y:number, z:number}[] => {
+// Calculates the Ground Track (ECEF path accounting for Earth rotation)
+export const calculateOrbitPath = (tle: TLEData, startTime: Date = new Date(), steps: number = 360): {x:number, y:number, z:number}[] => {
     const satrec = satellite.twoline2satrec(tle.line1, tle.line2);
     const points: {x:number, y:number, z:number}[] = [];
-    const now = new Date();
-    // Use fixed GMST for the entire orbit path to create an instantaneous orbital ring 
-    // that is valid for the current Earth rotation frame (ECEF)
-    const gmstNow = satellite.gstime(now);
     
     const meanMotion = satrec.no * 1440 / (2 * Math.PI); // revs/day
+    if (meanMotion === 0) return [];
+
     const periodMinutes = 1440 / meanMotion;
     const scale = 1 / EARTH_RADIUS_KM;
 
-    // Calculate one full orbit
+    // Calculate points for slightly more than one period to show connectivity
+    // We calculate the GROUND TRACK, so we must use the specific GMST for each time step.
     for (let i = 0; i <= steps; i++) {
-        // Propagate time forward to trace the ellipse
-        const t = new Date(now.getTime() + (i * periodMinutes / steps) * 60000);
+        const timeOffset = (i * periodMinutes / steps) * 60000; // ms
+        const t = new Date(startTime.getTime() + timeOffset);
+        
         const pv = satellite.propagate(satrec, t);
         
         if (pv.position && typeof pv.position !== 'boolean') {
              const pEci = pv.position as satellite.EciVec3<number>;
              
-             // Convert ECI to ECEF using CURRENT GMST (Snapshot approach)
-             // This draws the orbital plane as it exists right now relative to the Earth
-             const pEcf = satellite.eciToEcf(pEci, gmstNow);
+             // CRITICAL FIX: Use GMST at time `t`, not `now`. 
+             // This accounts for Earth's rotation, keeping the satellite ON the line in ECEF frame.
+             const gmstAtTime = satellite.gstime(t);
+             const pEcf = satellite.eciToEcf(pEci, gmstAtTime);
              
              points.push({
                  x: pEcf.x * scale,
@@ -86,10 +87,5 @@ export const calculateOrbitPath = (tle: TLEData, steps: number = 180): {x:number
         }
     }
     
-    // Ensure the loop is visually closed
-    if (points.length > 0) {
-        points.push(points[0]);
-    }
-
     return points;
 }

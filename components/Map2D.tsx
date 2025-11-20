@@ -9,11 +9,10 @@ const Map2D: React.FC<Map2DProps> = ({ satellites }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
 
-  // Load Earth Map Image (Night Version)
+  // Load Earth Map Image (High Res Blue Marble to match 3D)
   useEffect(() => {
     const img = new Image();
-    // Black Marble / Earth at Night texture
-    img.src = 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/The_earth_at_night.jpg/1024px-The_earth_at_night.jpg'; 
+    img.src = 'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg'; 
     img.onload = () => {
       imageRef.current = img;
     };
@@ -38,13 +37,10 @@ const Map2D: React.FC<Map2DProps> = ({ satellites }) => {
 
       // Draw Background
       if (imageRef.current) {
-        // Removed dark filter, added slight brightness boost
-        ctx.filter = 'brightness(1.2) contrast(1.1)'; 
         ctx.drawImage(imageRef.current, 0, 0, rect.width, rect.height);
-        ctx.filter = 'none';
       } else {
-        // Fallback grid
-        ctx.fillStyle = '#020617';
+        // Fallback
+        ctx.fillStyle = '#101827';
         ctx.fillRect(0, 0, rect.width, rect.height);
       }
 
@@ -57,27 +53,26 @@ const Map2D: React.FC<Map2DProps> = ({ satellites }) => {
       ctx.stroke();
 
       // Draw Orbit Lines (Ground Tracks)
-      ctx.globalAlpha = 0.8;
+      ctx.globalAlpha = 0.6;
       ctx.lineWidth = 1.5;
 
       satellites.forEach(sat => {
         if (!sat.orbitPath || sat.orbitPath.length === 0) return;
         
-        // Use satellite specific color
         const color = sat.color || '#06b6d4';
         ctx.strokeStyle = color;
-        ctx.shadowColor = color;
-        ctx.shadowBlur = 3; // Subtle glow
-
+        
         ctx.beginPath();
         let firstPoint = true;
         let prevX = 0;
 
         sat.orbitPath.forEach((p) => {
-            // Convert Three.js/ECEF coords to Lat/Lon
+            // Coordinate Conversion:
+            // 3D View Mapping: x=EcefX, y=EcefZ(North), z=-EcefY(West)
+            // Inverse Mapping for Calculation:
             const ecefX = p.x;
-            const ecefY = -p.z;
-            const ecefZ = p.y;
+            const ecefZ = p.y; // Three Y is North (Z in ECEF)
+            const ecefY = -p.z; // Three Z is -East (Y in ECEF)
 
             const r = Math.sqrt(ecefX * ecefX + ecefY * ecefY + ecefZ * ecefZ);
             if (r === 0) return;
@@ -96,7 +91,8 @@ const Map2D: React.FC<Map2DProps> = ({ satellites }) => {
                 firstPoint = false;
             } else {
                 // Handle Date Line crossing
-                if (Math.abs(x - prevX) > rect.width * 0.5) {
+                const dist = Math.abs(x - prevX);
+                if (dist > rect.width * 0.5) {
                     ctx.moveTo(x, y); 
                 } else {
                     ctx.lineTo(x, y);
@@ -105,7 +101,6 @@ const Map2D: React.FC<Map2DProps> = ({ satellites }) => {
             prevX = x;
         });
         ctx.stroke();
-        ctx.shadowBlur = 0; // Reset shadow for next
       });
 
       ctx.globalAlpha = 1.0;
@@ -115,41 +110,33 @@ const Map2D: React.FC<Map2DProps> = ({ satellites }) => {
         const x = ((sat.lon + 180) / 360) * rect.width;
         const y = ((90 - sat.lat) / 180) * rect.height;
 
-        // Glow
         const color = sat.color || '#ffffff';
-        ctx.shadowColor = color;
-        ctx.shadowBlur = 6;
         
-        ctx.fillStyle = '#ffffff'; // Center dot is white
+        // Marker
+        ctx.fillStyle = color; 
         ctx.beginPath();
         ctx.arc(x, y, 2.5, 0, Math.PI * 2);
         ctx.fill();
-
-        // Colored ring
-        ctx.strokeStyle = color;
+        
+        // Glow
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 5;
+        ctx.strokeStyle = 'rgba(255,255,255,0.8)';
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.arc(x, y, 4, 0, Math.PI * 2);
         ctx.stroke();
-
         ctx.shadowBlur = 0;
-        
-        // Label (optional)
-        if (satellites.length < 15) {
-            ctx.fillStyle = color;
-            ctx.font = 'bold 10px monospace';
-            ctx.fillText(sat.name, x + 8, y + 3);
-        }
       });
     };
 
-    draw();
+    requestAnimationFrame(draw);
   }, [satellites]);
 
   return (
     <canvas 
       ref={canvasRef} 
-      className="w-full h-full rounded bg-[#0b1120] border border-slate-800 shadow-inner"
+      className="w-full h-full rounded bg-[#0f172a] border border-slate-800 shadow-inner"
     />
   );
 };

@@ -6,14 +6,10 @@ import Earth3D from './components/Earth3D';
 import Map2D from './components/Map2D';
 import { Activity, Globe, Map as MapIcon, RefreshCw, Satellite, Zap, Radio } from 'lucide-react';
 
-// Neon Sci-Fi Palette
+// Simplified Tech Palette (Cyan & Blue) to reduce visual noise
 const ORBIT_COLORS = [
-    '#00f3ff', // Cyan
-    '#bd00ff', // Neon Purple
-    '#00ff9f', // Neon Green
-    '#ff0055', // Neon Red
-    '#fcee0a', // Neon Yellow
-    '#ff9100', // Neon Orange
+    '#06b6d4', // Cyan
+    '#3b82f6', // Blue
 ];
 
 // Plane Monitor Component
@@ -31,9 +27,10 @@ const PlaneMonitor = ({ group, active }: { group: OrbitalPlaneGroup; active: boo
         if (pos) {
             // Calculate orbits for enough sats to look cool, but not melt CPU
             if (idx < 75) {
-                pos.orbitPath = calculateOrbitPath(tle);
+                // FIX: Pass 'now' to ensure orbit path starts exactly where satellite is
+                pos.orbitPath = calculateOrbitPath(tle, now);
             }
-            // Assign color based on index
+            // Assign color based on index, cycling through reduced palette
             pos.color = ORBIT_COLORS[idx % ORBIT_COLORS.length];
         }
         return pos;
@@ -214,7 +211,7 @@ export default function App() {
               </div>
           </div>
           <div className="tracking-widest opacity-50">
-              SECURE TERMINAL // V.2.4.0
+              SECURE TERMINAL // V.2.5.0
           </div>
       </footer>
     </div>

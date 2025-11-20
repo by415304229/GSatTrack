@@ -48,7 +48,8 @@ export const getSatellitePosition = (tle: TLEData, date: Date): SatellitePos | n
     lat: latitude,
     lon: longitude,
     alt: height,
-    velocity: v
+    velocity: v,
+    tle: tle // Pass full TLE for details
   };
 };
 

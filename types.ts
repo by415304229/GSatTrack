@@ -17,6 +17,7 @@ export interface SatellitePos {
   velocity: number; // km/s
   orbitPath?: {x: number, y: number, z: number}[];
   color?: string; // Display color for orbit and marker
+  tle?: TLEData; // Full TLE data for detail view
 }
 
 export interface OrbitalPlaneGroup {

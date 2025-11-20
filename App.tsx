@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { fetchSatelliteGroups } from './services/satelliteService';
 import { getSatellitePosition, calculateOrbitPath } from './utils/satMath';
 import { OrbitalPlaneGroup, SatellitePos } from './types';
 import Earth3D from './components/Earth3D';
 import Map2D from './components/Map2D';
+import SatelliteDetail from './components/SatelliteDetail';
 import { Activity, Globe, Map as MapIcon, RefreshCw, Satellite, Zap, Radio } from 'lucide-react';
 
 // Simplified Tech Palette (Cyan & Blue) to reduce visual noise
@@ -15,20 +16,35 @@ const ORBIT_COLORS = [
 // Plane Monitor Component
 const PlaneMonitor = ({ group, active }: { group: OrbitalPlaneGroup; active: boolean }) => {
   const [satellites, setSatellites] = useState<SatellitePos[]>([]);
+  const [selectedSatId, setSelectedSatId] = useState<string | null>(null);
+  
+  // Cache for expensive orbit paths
+  const orbitCacheRef = useRef<Record<string, {path: {x:number, y:number, z:number}[], lastUpdated: number}>>({});
   
   useEffect(() => {
     if (!active) return;
 
     const update = () => {
       const now = new Date();
+      const nowTime = now.getTime();
       
       const positions = group.tles.map((tle, idx) => {
         const pos = getSatellitePosition(tle, now);
         if (pos) {
-            // Calculate orbits for enough sats to look cool, but not melt CPU
-            if (idx < 75) {
-                // FIX: Pass 'now' to ensure orbit path starts exactly where satellite is
-                pos.orbitPath = calculateOrbitPath(tle, now);
+            // Only calculate/draw orbits for a subset to maintain 60FPS
+            if (idx < 60) {
+                const satId = tle.satId;
+                const cache = orbitCacheRef.current[satId];
+                
+                // Throttle orbit recalculation to every 30 seconds
+                // The ground track shifts slowly, so 1fps update is wasteful
+                if (!cache || (nowTime - cache.lastUpdated > 30000)) {
+                     const path = calculateOrbitPath(tle, now);
+                     orbitCacheRef.current[satId] = { path, lastUpdated: nowTime };
+                     pos.orbitPath = path;
+                } else {
+                    pos.orbitPath = cache.path;
+                }
             }
             // Assign color based on index, cycling through reduced palette
             pos.color = ORBIT_COLORS[idx % ORBIT_COLORS.length];
@@ -45,12 +61,28 @@ const PlaneMonitor = ({ group, active }: { group: OrbitalPlaneGroup; active: boo
     return () => clearInterval(interval);
   }, [group, active]);
 
+  const handleSatClick = (sat: SatellitePos) => {
+      setSelectedSatId(sat.id);
+  };
+
+  const handleCloseDetail = () => {
+      setSelectedSatId(null);
+  };
+
+  // Find the selected satellite object from the live updated array
+  const selectedSat = satellites.find(s => s.id === selectedSatId);
+
   if (!active) return null;
 
   return (
-    <div className="flex flex-col h-full bg-[#020617] relative">
+    <div className="flex flex-col h-full bg-[#020617] relative overflow-hidden">
         {/* Decorative HUD lines */}
         <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent"></div>
+
+        {/* Detail Overlay */}
+        {selectedSat && (
+            <SatelliteDetail sat={selectedSat} onClose={handleCloseDetail} />
+        )}
 
         {/* Monitor Header */}
         <div className="flex items-center justify-between px-6 py-3 bg-[#0B1120] border-b border-slate-800/50 backdrop-blur-sm">
@@ -86,7 +118,7 @@ const PlaneMonitor = ({ group, active }: { group: OrbitalPlaneGroup; active: boo
                     <span className="text-[10px] font-bold text-slate-200 tracking-widest font-mono">3D INERTIAL VISUALIZER</span>
                 </div>
                 <div className="flex-1 p-4 bg-[#020617]">
-                    <Earth3D satellites={satellites} />
+                    <Earth3D satellites={satellites} onSatClick={handleSatClick} />
                 </div>
             </div>
             <div className="relative flex flex-col min-h-[300px] lg:min-h-0">
@@ -95,7 +127,7 @@ const PlaneMonitor = ({ group, active }: { group: OrbitalPlaneGroup; active: boo
                     <span className="text-[10px] font-bold text-slate-200 tracking-widest font-mono">GROUND TRACK TELEMETRY</span>
                 </div>
                 <div className="flex-1 p-4 bg-[#020617]">
-                    <Map2D satellites={satellites} />
+                    <Map2D satellites={satellites} onSatClick={handleSatClick} />
                 </div>
             </div>
         </div>

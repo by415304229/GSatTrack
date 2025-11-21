@@ -6,7 +6,7 @@ import { OrbitalPlaneGroup, SatellitePos, GroundStation } from './types';
 import Earth3D from './components/Earth3D';
 import Map2D from './components/Map2D';
 import SatelliteDetail from './components/SatelliteDetail';
-import { Activity, Globe, Map as MapIcon, RefreshCw, Satellite, Zap, Radio, Play, Pause, FastForward, Plus, MapPin, Clock } from 'lucide-react';
+import { Activity, Globe, Map as MapIcon, RefreshCw, Satellite, Zap, Radio, Play, Pause, FastForward, Plus, MapPin, Clock, Settings, X } from 'lucide-react';
 import clsx from 'clsx';
 
 const ORBIT_COLORS = ['#06b6d4', '#3b82f6'];
@@ -27,10 +27,14 @@ const TimeControls = ({
     onChangeRate: (r: number) => void,
     onReset: () => void
 }) => {
+    // Calculate local time (UTC+8 for Shanghai)
+    const shanghaiTime = new Date(time.getTime() + 8 * 60 * 60 * 1000);
+    
     return (
         <div className="flex items-center gap-4 bg-[#0B1120] border border-slate-800 rounded-md px-3 py-1.5">
-            <div className="font-mono text-xs text-cyan-400 w-[140px]">
-                {time.toISOString().replace('T', ' ').substring(0, 19)} UTC
+            <div className="font-mono text-xs text-cyan-400">
+                <div>UTC: {time.toISOString().replace('T', ' ').substring(0, 19)}</div>
+                <div className="text-emerald-400 text-[10px]">Local: {shanghaiTime.toISOString().replace('T', ' ').substring(0, 19)}</div>
             </div>
             <div className="h-4 w-[1px] bg-slate-700"></div>
             <button onClick={onTogglePause} className="hover:text-cyan-400 transition-colors">
@@ -137,6 +141,173 @@ const StationPanel = ({
     );
 };
 
+// --- Settings Panel ---
+const SettingsPanel = ({ 
+    isOpen, 
+    onClose, 
+    orbitWindowMinutes,
+    onOrbitWindowChange,
+    selectedSatellites,
+    onSatelliteToggle,
+    availableSatellites
+}: { 
+    isOpen: boolean;
+    onClose: () => void;
+    orbitWindowMinutes: number;
+    onOrbitWindowChange: (minutes: number) => void;
+    selectedSatellites: Set<string>;
+    onSatelliteToggle: (satId: string) => void;
+    availableSatellites: Array<{id: string, name: string}>;
+}) => {
+    const [windowInput, setWindowInput] = useState(orbitWindowMinutes.toString());
+    const [searchTerm, setSearchTerm] = useState('');
+
+    // 实时更新轨道窗口时间
+    useEffect(() => {
+        const minutes = parseFloat(windowInput);
+        if (minutes > 0 && minutes <= 120 && minutes !== orbitWindowMinutes) {
+            onOrbitWindowChange(minutes);
+        }
+    }, [windowInput, orbitWindowMinutes, onOrbitWindowChange]);
+
+    // 过滤卫星
+    const filteredSatellites = availableSatellites.filter(sat => 
+        sat.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        sat.id.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    // 全选/全不选功能
+    const handleSelectAll = () => {
+        // 检查当前过滤结果中是否所有卫星都已选中
+        const allFilteredSelected = filteredSatellites.every(sat => selectedSatellites.has(sat.id));
+        // 检查是否有部分选中
+        const hasPartialSelection = filteredSatellites.some(sat => selectedSatellites.has(sat.id)) && !allFilteredSelected;
+        
+        if (allFilteredSelected) {
+            // 全不选：取消选中所有过滤结果中的卫星
+            filteredSatellites.forEach(sat => {
+                if (selectedSatellites.has(sat.id)) {
+                    onSatelliteToggle(sat.id);
+                }
+            });
+        } else if (hasPartialSelection) {
+            // 反选：取消选中的改为选中，选中的改为取消选中
+            filteredSatellites.forEach(sat => {
+                onSatelliteToggle(sat.id);
+            });
+        } else {
+            // 全选：选中所有过滤结果中的卫星
+            filteredSatellites.forEach(sat => {
+                if (!selectedSatellites.has(sat.id)) {
+                    onSatelliteToggle(sat.id);
+                }
+            });
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+            <div className="bg-[#020617] border border-slate-700 rounded-md shadow-2xl w-[500px] max-h-[80vh] flex flex-col">
+                {/* Header */}
+                <div className="flex items-center justify-between p-4 border-b border-slate-700">
+                    <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                        <Settings size={16} className="text-cyan-400" />
+                        SETTINGS
+                    </h2>
+                    <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+                        <X size={16} />
+                    </button>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                    {/* Orbit Window Settings */}
+                    <div className="space-y-3">
+                        <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wide">Orbit Window</h3>
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                                <input 
+                                    type="number" 
+                                    value={windowInput}
+                                    onChange={(e) => setWindowInput(e.target.value)}
+                                    className="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white" 
+                                    min="1" 
+                                    max="120" 
+                                    step="0.1"
+                                />
+                                <span className="text-xs text-slate-400">minutes</span>
+                            </div>
+                            <div className="text-[10px] text-slate-500">
+                                Current: {orbitWindowMinutes} minutes | Range: 1-120 minutes
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Satellite Selection */}
+                    <div className="space-y-3">
+                        <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wide">Satellite Tracking</h3>
+                        {/* 查找框 */}
+                    <div className="mb-3">
+                        <input
+                            type="text"
+                            placeholder="Search satellite name or ID..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-700 rounded-md bg-slate-900 text-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        />
+                    </div>
+
+                    {/* 全选/全不选按钮 */}
+                    <div className="mb-3 flex items-center gap-2">
+                        <button
+                            onClick={handleSelectAll}
+                            className="px-3 py-1 text-[10px] bg-cyan-900 hover:bg-cyan-800 text-cyan-300 rounded-md transition-colors"
+                        >
+                            {(() => {
+                                const allFilteredSelected = filteredSatellites.every(sat => selectedSatellites.has(sat.id));
+                                const hasPartialSelection = filteredSatellites.some(sat => selectedSatellites.has(sat.id)) && !allFilteredSelected;
+                                
+                                if (allFilteredSelected) return 'Deselect All';
+                                if (hasPartialSelection) return 'Invert Selection';
+                                return 'Select All';
+                            })()}
+                        </button>
+                        <span className="text-[10px] text-slate-500">
+                            {selectedSatellites.size}/{filteredSatellites.length} selected
+                        </span>
+                    </div>
+
+                    <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                        {filteredSatellites.map((sat) => (
+                            <div key={sat.id} className="flex items-center justify-between p-2 bg-slate-900 rounded border border-slate-800 hover:border-slate-700 transition-colors">
+                                <label className="flex items-center gap-2 cursor-pointer flex-1">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={selectedSatellites.has(sat.id)}
+                                        onChange={() => onSatelliteToggle(sat.id)}
+                                        className="rounded text-cyan-600 bg-slate-800 border-slate-600 focus:ring-cyan-500"
+                                    />
+                                    <span className="text-xs font-mono text-slate-300">{sat.name}</span>
+                                </label>
+                                <span className="text-[10px] text-slate-500 font-mono">{sat.id}</span>
+                            </div>
+                        ))}
+                        {filteredSatellites.length === 0 && (
+                            <div className="text-[10px] text-slate-600 italic p-2">No matching satellites</div>
+                        )}
+                    </div>
+                        <div className="text-[10px] text-slate-500">
+                            Selected: {selectedSatellites.size} / {availableSatellites.length} satellites
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // --- View Mode Toggle ---
 const ViewToggle = ({ mode, onChange }: { mode: '3d' | '2d' | 'split', onChange: (mode: '3d' | '2d' | 'split') => void }) => {
     return (
@@ -181,13 +352,17 @@ const PlaneMonitor = ({
     active, 
     simulatedTime,
     groundStations,
-    viewMode = 'split'
+    viewMode = 'split',
+    orbitWindowMinutes,
+    selectedSatellites
 }: { 
     group: OrbitalPlaneGroup; 
     active: boolean;
     simulatedTime: Date;
     groundStations: GroundStation[];
     viewMode?: '3d' | '2d' | 'split';
+    orbitWindowMinutes: number;
+    selectedSatellites: Set<string>;
 }) => {
   const [satellites, setSatellites] = useState<SatellitePos[]>([]);
   const [selectedSatId, setSelectedSatId] = useState<string | null>(null);
@@ -199,25 +374,25 @@ const PlaneMonitor = ({
   useEffect(() => {
     if (!active) return;
     
-    const positions = group.tles.map((tle, idx) => {
+    const positions = group.tles
+      .filter(tle => selectedSatellites.size === 0 || selectedSatellites.has(tle.satId)) // 过滤选中的卫星
+      .map((tle, idx) => {
         // Use simulatedTime instead of new Date()
         const pos = getSatellitePosition(tle, simulatedTime);
         if (pos) {
-            // Optimization: Only draw full orbits for first 60 sats to save FPS
-            if (idx < 60) {
-                const satId = tle.satId;
-                const cache = orbitCacheRef.current[satId];
-                
-                // Recalculate orbit if cache expired (10s) or time jumped significantly
-                const timeMs = simulatedTime.getTime();
-                if (!cache || Math.abs(timeMs - cache.lastUpdated) > 10000) {
-                    // Pass simulatedTime to orbit calculator
-                    const path = calculateOrbitPath(tle, simulatedTime);
-                    orbitCacheRef.current[satId] = { path, lastUpdated: timeMs };
-                    pos.orbitPath = path;
-                } else {
-                    pos.orbitPath = cache.path;
-                }
+            // 所有卫星都计算轨道，不再限制数量
+            const satId = tle.satId;
+            const cache = orbitCacheRef.current[satId];
+            
+            // Recalculate orbit if cache expired (10s) or time jumped significantly
+            const timeMs = simulatedTime.getTime();
+            if (!cache || Math.abs(timeMs - cache.lastUpdated) > 10000) {
+                // Pass simulatedTime to orbit calculator with orbit window
+                const path = calculateOrbitPath(tle, simulatedTime, orbitWindowMinutes);
+                orbitCacheRef.current[satId] = { path, lastUpdated: timeMs };
+                pos.orbitPath = path;
+            } else {
+                pos.orbitPath = cache.path;
             }
             pos.color = ORBIT_COLORS[idx % ORBIT_COLORS.length];
         }
@@ -226,7 +401,7 @@ const PlaneMonitor = ({
       
     setSatellites(positions);
     
-  }, [group, active, simulatedTime]);
+  }, [group, active, simulatedTime, selectedSatellites, orbitWindowMinutes]);
 
   const handleSatClick = (sat: SatellitePos) => {
       setSelectedSatId(sat.id);
@@ -346,6 +521,11 @@ export default function App() {
   // View Mode State
   const [viewMode, setViewMode] = useState<'3d' | '2d' | 'split'>('3d');
 
+  // Settings State
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [orbitWindowMinutes, setOrbitWindowMinutes] = useState(24); // 1/4 period ~24 minutes
+  const [selectedSatellites, setSelectedSatellites] = useState<Set<string>>(new Set());
+
   // Ground Stations State
   const [stations, setStations] = useState<GroundStation[]>([
       { id: 'gs-1', name: 'Shanghai', lat: 31.2304, lon: 121.4737, color: '#10b981' },
@@ -427,6 +607,13 @@ export default function App() {
                 onAdd={handleAddStation} 
                 onRemove={handleRemoveStation} 
              />
+             <button 
+                onClick={() => setSettingsOpen(true)}
+                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 rounded border border-slate-700 text-[10px] font-bold transition-colors flex items-center gap-1.5"
+             >
+                <Settings size={12} />
+                SETTINGS
+             </button>
         </div>
         
         {/* Group Toggles */}
@@ -435,14 +622,16 @@ export default function App() {
                  <button 
                     key={g.id}
                     onClick={() => {
-                        // Simple toggle logic
-                        setActiveGroups(prev => prev.includes(g.id) ? prev.filter(id => id !== g.id) : [...prev, g.id]);
+                        // 互斥切换逻辑：点击已激活的组不做操作，点击新组则只激活该组
+                        if (!activeGroups.includes(g.id)) {
+                            setActiveGroups([g.id]);
+                        }
                     }}
                     className={clsx(
                         "px-3 py-1.5 text-[10px] font-bold rounded transition-all border uppercase tracking-wider",
                         activeGroups.includes(g.id) 
                         ? "bg-cyan-950 text-cyan-400 border-cyan-500/50" 
-                        : "bg-slate-900 text-slate-500 border-slate-800"
+                        : "bg-slate-900 text-slate-500 border-slate-800 hover:bg-slate-800 hover:text-slate-300"
                     )}
                  >
                     {g.name}
@@ -471,6 +660,8 @@ export default function App() {
                                 simulatedTime={simTime}
                                 groundStations={stations}
                                 viewMode={viewMode}
+                                orbitWindowMinutes={orbitWindowMinutes}
+                                selectedSatellites={selectedSatellites}
                              />
                          </div>
                      );
@@ -483,6 +674,27 @@ export default function App() {
             </div>
         )}
       </main>
+
+      {/* Settings Panel */}
+      <SettingsPanel 
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        orbitWindowMinutes={orbitWindowMinutes}
+        onOrbitWindowChange={setOrbitWindowMinutes}
+        selectedSatellites={selectedSatellites}
+        onSatelliteToggle={(satId) => {
+          setSelectedSatellites(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(satId)) {
+              newSet.delete(satId);
+            } else {
+              newSet.add(satId);
+            }
+            return newSet;
+          });
+        }}
+        availableSatellites={groups.flatMap(g => g.tles || []).map(tle => ({ id: tle.satId, name: tle.name }))}
+      />
     </div>
   );
 }

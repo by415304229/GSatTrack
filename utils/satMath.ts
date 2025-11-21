@@ -87,7 +87,7 @@ export const getSatellitePosition = (tle: TLEData, date: Date): SatellitePos | n
 };
 
 // Calculates the Ground Track (ECEF path accounting for Earth rotation)
-export const calculateOrbitPath = (tle: TLEData, startTime: Date = new Date(), steps: number = 720): {x:number, y:number, z:number, lat:number, lon:number}[] => {
+export const calculateOrbitPath = (tle: TLEData, startTime: Date = new Date(), orbitWindowMinutes: number = 24): {x:number, y:number, z:number, lat:number, lon:number}[] => {
     const satrec = satellite.twoline2satrec(tle.line1, tle.line2);
     const points: {x:number, y:number, z:number, lat:number, lon:number}[] = [];
     
@@ -99,11 +99,14 @@ export const calculateOrbitPath = (tle: TLEData, startTime: Date = new Date(), s
         periodMinutes = (2 * Math.PI) / satrec.no;
     }
 
-    // 2. Center the window on the satellite
-    // Propagate from T - Period/2 to T + Period/2
-    const startOffsetMinutes = -periodMinutes / 2;
-    const totalMinutes = periodMinutes;
+    // 2. Start from current time
+    // Use the specified orbit window time instead of fixed 1/4 period
+    const startOffsetMinutes = 0;
+    const totalMinutes = Math.min(orbitWindowMinutes, periodMinutes / 2); // Limit to half orbit max
 
+    // Calculate steps based on orbit window (more steps for longer windows)
+    const steps = Math.max(180, Math.min(360, Math.floor(totalMinutes * 15))); // ~15 steps per minute
+    
     for (let i = 0; i <= steps; i++) {
         const fraction = i / steps;
         const minutesFromCenter = startOffsetMinutes + (fraction * totalMinutes);

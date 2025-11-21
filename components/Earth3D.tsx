@@ -39,11 +39,11 @@ const Atmosphere = () => {
 const EarthMesh = () => {
   const { gl } = useThree();
   
-  // Standard Three.js texture loader with basic caching
+  // Standard Three.js texture loader with basic caching - using local files
   const [colorMap, normalMap, specularMap] = useLoader(THREE.TextureLoader, [
-      'https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg',
-      'https://threejs.org/examples/textures/planets/earth_normal_2048.jpg',
-      'https://threejs.org/examples/textures/planets/earth_specular_2048.jpg'
+      '/data/earth_atmos_2048.jpg',
+      '/data/earth_normal_2048.jpg',
+      '/data/earth_specular_2048.jpg'
   ]);
   
   useMemo(() => {

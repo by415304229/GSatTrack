@@ -65,7 +65,7 @@ const Map2D: React.FC<Map2DProps> = ({ satellites, groundStations, onSatClick })
   useEffect(() => {
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.src = 'https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg'; 
+    img.src = '/data/earth_atmos_2048.jpg'; // Using local file
     img.onload = () => {
       imageRef.current = img;
     };

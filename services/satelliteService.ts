@@ -1,6 +1,5 @@
 
 import { TLEData, OrbitalPlaneGroup } from '../types';
-import { OFFLINE_TLE_DATA } from '../data/offlineData';
 
 const CACHE_KEY = 'orbital_ops_tle_cache';
 const CACHE_DURATION = 60 * 60 * 1000; // 1 Hour
@@ -70,19 +69,19 @@ export const fetchSatelliteGroups = async (): Promise<OrbitalPlaneGroup[]> => {
       id: 'qianfan', 
       name: 'Qianfan (G60)', 
       description: 'Thousand Sails Constellation', 
-      url: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle'
+      url: '/data/QIANFAN.txt' // Using local TLE file
     },
     {
       id: 'stations',
       name: 'Space Stations',
       description: 'ISS & Tiangong',
-      url: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle'
+      url: '/data/Stations.txt' // Using local TLE file
     },
     {
       id: 'starlink',
       name: 'Starlink',
       description: 'SpaceX Starlink',
-      url: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle'
+      url: '/data/StarLink.txt' // Using local TLE file
     }
   ];
 
@@ -99,21 +98,6 @@ export const fetchSatelliteGroups = async (): Promise<OrbitalPlaneGroup[]> => {
             tles = parseTLE(text);
         } catch (netErr) {
             console.warn(`Network error for ${source.id}, using offline data.`);
-        }
-
-        // If fetch failed or returned empty, use offline fallback
-        if (tles.length === 0) {
-            const combinedOffline = OFFLINE_TLE_DATA.join('\n');
-            let allOfflineTles = parseTLE(combinedOffline);
-            
-            // Simple filtering for fallback data
-            if (source.id === 'qianfan') {
-                tles = allOfflineTles.filter(t => t.name.toUpperCase().includes('QIANFAN'));
-            } else if (source.id === 'starlink') {
-                tles = allOfflineTles.filter(t => t.name.toUpperCase().includes('STARLINK'));
-            } else if (source.id === 'stations') {
-                tles = allOfflineTles.filter(t => t.name.toUpperCase().includes('ISS') || t.name.toUpperCase().includes('TIANGONG'));
-            }
         }
 
         // Post-processing filters for specific groups (especially to limit Starlink count)
@@ -153,16 +137,6 @@ export const fetchSatelliteGroups = async (): Promise<OrbitalPlaneGroup[]> => {
     console.error("Critical Error fetching satellite data:", err);
   }
   
-  // Absolute fallback if everything fails (e.g. cache empty + network down + logic error)
-  if (groups.length === 0) {
-       const offlineTles = parseTLE(OFFLINE_TLE_DATA.join('\n'));
-       groups.push({
-           id: 'offline',
-           name: 'OFFLINE MODE',
-           description: 'Using local database',
-           tles: offlineTles
-       });
-  }
 
   return groups;
 };

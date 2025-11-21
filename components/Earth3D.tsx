@@ -1,13 +1,14 @@
-import React, { useMemo, useRef, useState, Suspense, useEffect } from 'react';
+
+import React, { useMemo, useRef, useState, Suspense } from 'react';
 import { Canvas, useFrame, extend, useLoader, useThree, ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import * as THREE from 'three';
-import { SatellitePos } from '../types';
+import { SatellitePos, GroundStation } from '../types';
+import { latLonToScene } from '../utils/satMath';
 
 // Extend Three.js Line
 extend({ ThreeLine: THREE.Line });
 
-// Create a type-safe alias to avoid SVG collision and TS errors
 const OrbitLineImpl = 'threeLine' as unknown as React.FC<any>;
 
 // Earth Radius in scene units
@@ -15,6 +16,7 @@ const R = 1;
 
 interface EarthProps {
   satellites: SatellitePos[];
+  groundStations: GroundStation[];
   onSatClick?: (sat: SatellitePos) => void;
 }
 
@@ -37,6 +39,7 @@ const Atmosphere = () => {
 const EarthMesh = () => {
   const { gl } = useThree();
   
+  // Standard Three.js texture loader with basic caching
   const [colorMap, normalMap, specularMap] = useLoader(THREE.TextureLoader, [
       'https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg',
       'https://threejs.org/examples/textures/planets/earth_normal_2048.jpg',
@@ -52,7 +55,12 @@ const EarthMesh = () => {
   
   return (
     <group>
-        <mesh rotation={[0, 0, 0]}>
+        {/* Align Texture with ECEF (+Z = Greenwich). 
+            Standard Sphere: +X is Greenwich. 
+            Our Math: +Z is Greenwich.
+            Rotate Y by -90 deg to bring +X to +Z.
+        */}
+        <mesh rotation={[0, -Math.PI / 2, 0]}>
             <sphereGeometry args={[R, 64, 64]} />
             <meshPhongMaterial 
                 map={colorMap} 
@@ -69,9 +77,12 @@ const EarthMesh = () => {
 };
 
 interface HoverData {
-    sat: SatellitePos;
+    id: string;
+    name: string;
+    type: 'SAT' | 'STATION';
     x: number;
     y: number;
+    data?: any;
 }
 
 const SatelliteInstances = ({ 
@@ -107,7 +118,10 @@ const SatelliteInstances = ({
       const instanceId = e.instanceId;
       if (instanceId !== undefined && satellites[instanceId]) {
           onHover({
-              sat: satellites[instanceId],
+              id: satellites[instanceId].id,
+              name: satellites[instanceId].name,
+              type: 'SAT',
+              data: satellites[instanceId],
               x: e.clientX,
               y: e.clientY
           });
@@ -136,138 +150,110 @@ const SatelliteInstances = ({
         onPointerOut={handlePointerOut}
         onPointerDown={handlePointerDown}
     >
-      <sphereGeometry args={[1, 12, 12]} />
+      <sphereGeometry args={[1, 8, 8]} />
       <meshBasicMaterial toneMapped={false} />
     </instancedMesh>
   );
 };
 
-interface OrbitLineProps {
-  path: {x:number, y:number, z:number}[]; // Still uses x,y,z for 3D
-  color: string;
-}
-
-const OrbitLine: React.FC<OrbitLineProps> = ({ path, color }) => {
-  const points = useMemo(() => {
-      const arr = new Float32Array(path.length * 3);
-      for(let i=0; i<path.length; i++) {
-          arr[i*3] = path[i].x;
-          arr[i*3+1] = path[i].y;
-          arr[i*3+2] = path[i].z;
-      }
-      return arr;
-  }, [path]);
-
-  if (path.length === 0) return null;
-
-  return (
-      <OrbitLineImpl>
-          <bufferGeometry>
-             <bufferAttribute 
-                attach="attributes-position" 
-                count={path.length} 
-                array={points} 
-                itemSize={3} 
-             />
-          </bufferGeometry>
-          <lineBasicMaterial color={color} opacity={0.4} transparent blending={THREE.AdditiveBlending} linewidth={1} />
-      </OrbitLineImpl>
-  );
-};
-
-const Orbits = ({ satellites }: { satellites: SatellitePos[] }) => {
+const GroundStationMarkers = ({ stations, onHover }: { stations: GroundStation[], onHover: (data: HoverData | null) => void }) => {
     return (
         <group>
-            {satellites.map((sat) => {
-                if (!sat.orbitPath || sat.orbitPath.length === 0) return null;
-                return <OrbitLine key={`orbit-${sat.id}`} path={sat.orbitPath} color={sat.color || '#06b6d4'} />;
+            {stations.map(station => {
+                const pos = latLonToScene(station.lat, station.lon, R);
+                return (
+                    <group key={station.id} position={[pos.x, pos.y, pos.z]}>
+                        {/* Base */}
+                        <mesh 
+                            onPointerOver={(e) => {
+                                e.stopPropagation();
+                                onHover({ id: station.id, name: station.name, type: 'STATION', x: e.clientX, y: e.clientY });
+                                document.body.style.cursor = 'pointer';
+                            }}
+                            onPointerOut={() => {
+                                onHover(null);
+                                document.body.style.cursor = 'default';
+                            }}
+                        >
+                            <cylinderGeometry args={[0.005, 0.001, 0.05, 6]} />
+                            <meshBasicMaterial color={station.color} />
+                        </mesh>
+                        {/* Pulse */}
+                        <mesh position={[0, 0.025, 0]}>
+                             <sphereGeometry args={[0.008, 8, 8]} />
+                             <meshBasicMaterial color={station.color} opacity={0.6} transparent />
+                        </mesh>
+                    </group>
+                )
             })}
         </group>
     )
 }
 
-const Tooltip = ({ data }: { data: HoverData }) => {
-    return (
-        <div 
-            className="fixed z-50 pointer-events-none p-3 bg-slate-950/90 border border-cyan-500/50 rounded backdrop-blur-md shadow-[0_0_20px_rgba(6,182,212,0.2)] flex flex-col gap-2 min-w-[180px]"
-            style={{ 
-                left: data.x + 15, 
-                top: data.y + 15,
-                transform: 'translate(0, 0)' 
-            }}
-        >
-            <div className="flex items-center justify-between border-b border-slate-800 pb-1 mb-1">
-                <span className="text-cyan-400 font-bold font-mono text-xs tracking-wider">{data.sat.name}</span>
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-            </div>
-            <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[10px] font-mono text-slate-300">
-                <span className="text-slate-500">ALT</span>
-                <span className="text-right font-bold">{data.sat.alt.toFixed(1)} KM</span>
-                
-                <span className="text-slate-500">VEL</span>
-                <span className="text-right font-bold">{data.sat.velocity.toFixed(2)} KM/S</span>
-                
-                <span className="text-slate-500">LAT</span>
-                <span className="text-right font-bold">{data.sat.lat.toFixed(2)}°</span>
-                
-                <span className="text-slate-500">LON</span>
-                <span className="text-right font-bold">{data.sat.lon.toFixed(2)}°</span>
-            </div>
-            
-            <div className="text-[9px] text-cyan-500/50 font-mono pt-1 border-t border-slate-800/50 mt-1">
-                ID: {data.sat.id} // CLICK FOR DETAILS
-            </div>
-        </div>
-    )
-}
+const OrbitLine: React.FC<{ path: {x:number, y:number, z:number}[], color: string }> = ({ path, color }) => {
+  const geometry = useMemo(() => {
+    const points = path.map(p => new THREE.Vector3(p.x, p.y, p.z));
+    const geo = new THREE.BufferGeometry().setFromPoints(points);
+    return geo;
+  }, [path]);
 
-const Earth3D: React.FC<EarthProps> = ({ satellites, onSatClick }) => {
+  return (
+    <OrbitLineImpl>
+      <primitive object={geometry} attach="geometry" />
+      <lineBasicMaterial attach="material" color={color} opacity={0.4} transparent depthWrite={false} linewidth={1} />
+    </OrbitLineImpl>
+  );
+};
+
+const Earth3D: React.FC<EarthProps> = ({ satellites, groundStations, onSatClick }) => {
   const [hoverData, setHoverData] = useState<HoverData | null>(null);
 
   return (
-    <div className="w-full h-full bg-[#050505] rounded border border-slate-800 relative overflow-hidden shadow-2xl shadow-black group">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-900/10 via-transparent to-transparent pointer-events-none z-0"></div>
-        
-        <Canvas 
-            camera={{ position: [0, 2, 3.5], fov: 40 }} 
-            dpr={[1, 2]} 
-            gl={{ antialias: true }}
-            shadows
-            style={{ width: '100%', height: '100%', display: 'block' }}
-            resize={{ debounce: 0 }} // Immediate resize handling
-        >
-          <ambientLight intensity={0.6} color="#ffffff" /> 
-          <directionalLight position={[5, 3, 5]} intensity={2.0} color="#ffffff" castShadow />
-          <directionalLight position={[-5, -3, -2]} intensity={0.5} color="#8899aa" />
+    <div className="w-full h-full relative">
+        {hoverData && (
+             <div 
+                className="fixed z-50 pointer-events-none p-2 bg-black/80 border border-slate-700 rounded text-xs font-mono text-white shadow-xl backdrop-blur"
+                style={{ left: hoverData.x + 20, top: hoverData.y }}
+             >
+                <div className="font-bold text-cyan-400">{hoverData.name}</div>
+                <div className="text-[10px] text-slate-400">{hoverData.type}</div>
+             </div>
+        )}
+
+        <Canvas camera={{ position: [0, 0, 2.5], fov: 45 }} dpr={[1, 2]} shadows>
+          <color attach="background" args={['#000']} />
+          <ambientLight intensity={0.2} />
+          <directionalLight position={[5, 3, 5]} intensity={2.5} castShadow />
+          <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
           
-          <Stars radius={300} depth={60} count={2000} factor={4} saturation={0} fade speed={0.5} />
-          
-          <Suspense fallback={null}>
-            <EarthMesh />
-          </Suspense>
-          
-          <SatelliteInstances satellites={satellites} onHover={setHoverData} onClick={onSatClick} />
-          <Orbits satellites={satellites} />
+          <group>
+            <Suspense fallback={null}>
+                <EarthMesh />
+            </Suspense>
+
+            <SatelliteInstances 
+                satellites={satellites} 
+                onHover={setHoverData} 
+                onClick={onSatClick}
+            />
+            
+            <GroundStationMarkers stations={groundStations} onHover={setHoverData} />
+
+            {satellites.map(sat => (
+               sat.orbitPath && sat.orbitPath.length > 0 && (
+                   <OrbitLine key={`orbit-${sat.id}`} path={sat.orbitPath} color={sat.color || '#ffffff'} />
+               )
+            ))}
+          </group>
           
           <OrbitControls 
-            enablePan={false} 
-            minDistance={1.8} 
-            maxDistance={10} 
-            autoRotate 
-            autoRotateSpeed={0.3} 
-            enableDamping
-            dampingFactor={0.05}
+             enablePan={false} 
+             minDistance={1.2} 
+             maxDistance={8} 
+             rotateSpeed={0.5} 
+             zoomSpeed={0.8}
           />
         </Canvas>
-        
-        {hoverData && <Tooltip data={hoverData} />}
-        
-        {/* Overlay Stats */}
-        <div className="absolute bottom-4 left-4 bg-black/80 border border-slate-800 p-3 rounded text-xs font-mono text-cyan-400 pointer-events-none backdrop-blur-md">
-            <div className="text-white font-bold mb-1">REAL-TIME TRACKING</div>
-            <div>OBJECTS: {satellites.length}</div>
-            <div>REF: J2000/ECEF</div>
-        </div>
     </div>
   );
 };

@@ -1,3 +1,4 @@
+
 export interface TLEData {
   name: string;
   line1: string;
@@ -25,6 +26,14 @@ export interface OrbitalPlaneGroup {
   name: string;
   description: string;
   tles: TLEData[];
+}
+
+export interface GroundStation {
+    id: string;
+    name: string;
+    lat: number;
+    lon: number;
+    color: string;
 }
 
 export interface TrackerSettings {

@@ -1,7 +1,45 @@
+
 import * as satellite from 'satellite.js';
 import { TLEData, SatellitePos } from '../types';
 
 const EARTH_RADIUS_KM = 6371;
+
+// Coordinate Mapping Helper
+// Maps standard ECEF (X=Greenwich, Z=North) to Three.js Scene (Z=Front/Greenwich, Y=Up/North)
+const mapEcefToScene = (ecf: {x: number, y: number, z: number}, scale: number) => {
+    return {
+        x: ecf.y * scale, // ECEF Y (90E) -> Scene X (Right)
+        y: ecf.z * scale, // ECEF Z (North) -> Scene Y (Up)
+        z: ecf.x * scale  // ECEF X (Greenwich) -> Scene Z (Front)
+    };
+};
+
+// Helper to convert Lat/Lon to 3D Scene Coordinates (on surface of Earth sphere radius 1)
+export const latLonToScene = (lat: number, lon: number, radius: number = 1) => {
+    const r = radius;
+    // Convert degrees to radians
+    const latRad = lat * (Math.PI / 180);
+    const lonRad = lon * (Math.PI / 180);
+
+    // Calculate ECEF Cartesian coordinates on unit sphere
+    // x = r * cos(lat) * cos(lon)  (Points to Greenwich)
+    // y = r * cos(lat) * sin(lon)  (Points to 90E)
+    // z = r * sin(lat)             (Points North)
+    const x = r * Math.cos(latRad) * Math.cos(lonRad);
+    const y = r * Math.cos(latRad) * Math.sin(lonRad);
+    const z = r * Math.sin(latRad);
+    
+    // Apply our scene mapping (ECEF X->Z, Y->X, Z->Y)
+    // Scene X = ECEF Y
+    // Scene Y = ECEF Z
+    // Scene Z = ECEF X
+    return {
+        x: y,
+        y: z,
+        z: x
+    };
+};
+
 
 export const getSatellitePosition = (tle: TLEData, date: Date): SatellitePos | null => {
   const satrec = satellite.twoline2satrec(tle.line1, tle.line2);
@@ -23,15 +61,10 @@ export const getSatellitePosition = (tle: TLEData, date: Date): SatellitePos | n
   const positionEcf = satellite.eciToEcf(positionEci, gmst);
   const positionGd = satellite.eciToGeodetic(positionEci, gmst);
 
-  // Coordinate conversion for Three.js (Y-up)
-  // ECEF X -> Three X
-  // ECEF Z -> Three Y (North)
-  // ECEF Y -> Three Z
   const scale = 1 / EARTH_RADIUS_KM; 
   
-  const x = positionEcf.x * scale;
-  const y = positionEcf.z * scale; 
-  const z = -positionEcf.y * scale; 
+  // Apply Coordinate Mapping
+  const scenePos = mapEcefToScene(positionEcf, scale);
 
   const longitude = satellite.degreesLong(positionGd.longitude);
   const latitude = satellite.degreesLat(positionGd.latitude);
@@ -42,53 +75,60 @@ export const getSatellitePosition = (tle: TLEData, date: Date): SatellitePos | n
   return {
     id: tle.satId,
     name: tle.name,
-    x,
-    y,
-    z,
+    x: scenePos.x,
+    y: scenePos.y,
+    z: scenePos.z,
     lat: latitude,
     lon: longitude,
     alt: height,
     velocity: v,
-    tle: tle // Pass full TLE for details
+    tle: tle
   };
 };
 
 // Calculates the Ground Track (ECEF path accounting for Earth rotation)
-// Now includes Geodetic Lat/Lon for precise 2D plotting
-export const calculateOrbitPath = (tle: TLEData, startTime: Date = new Date(), steps: number = 360): {x:number, y:number, z:number, lat:number, lon:number}[] => {
+export const calculateOrbitPath = (tle: TLEData, startTime: Date = new Date(), steps: number = 720): {x:number, y:number, z:number, lat:number, lon:number}[] => {
     const satrec = satellite.twoline2satrec(tle.line1, tle.line2);
     const points: {x:number, y:number, z:number, lat:number, lon:number}[] = [];
     
-    const meanMotion = satrec.no * 1440 / (2 * Math.PI); // revs/day
-    if (meanMotion === 0) return [];
-
-    const periodMinutes = 1440 / meanMotion;
     const scale = 1 / EARTH_RADIUS_KM;
 
-    // Calculate points for slightly more than one period to show connectivity
-    // We calculate the GROUND TRACK, so we must use the specific GMST for each time step.
+    // 1. Calculate Exact Period
+    let periodMinutes = 95; 
+    if (satrec.no && satrec.no > 0) {
+        periodMinutes = (2 * Math.PI) / satrec.no;
+    }
+
+    // 2. Center the window on the satellite
+    // Propagate from T - Period/2 to T + Period/2
+    const startOffsetMinutes = -periodMinutes / 2;
+    const totalMinutes = periodMinutes;
+
     for (let i = 0; i <= steps; i++) {
-        const timeOffset = (i * periodMinutes / steps) * 60000; // ms
-        const t = new Date(startTime.getTime() + timeOffset);
+        const fraction = i / steps;
+        const minutesFromCenter = startOffsetMinutes + (fraction * totalMinutes);
+        const timeOffsetMs = minutesFromCenter * 60000;
+        
+        const t = new Date(startTime.getTime() + timeOffsetMs);
         
         const pv = satellite.propagate(satrec, t);
         
         if (pv.position && typeof pv.position !== 'boolean') {
              const pEci = pv.position as satellite.EciVec3<number>;
              
-             // CRITICAL: Use GMST at time `t`
              const gmstAtTime = satellite.gstime(t);
              
              // 1. ECEF for 3D
              const pEcf = satellite.eciToEcf(pEci, gmstAtTime);
+             const scenePos = mapEcefToScene(pEcf, scale);
              
-             // 2. Geodetic for 2D (Matches satellite marker projection exactly)
+             // 2. Geodetic for 2D
              const pGd = satellite.eciToGeodetic(pEci, gmstAtTime);
              
              points.push({
-                 x: pEcf.x * scale,
-                 y: pEcf.z * scale,
-                 z: -pEcf.y * scale,
+                 x: scenePos.x,
+                 y: scenePos.y,
+                 z: scenePos.z,
                  lat: satellite.degreesLat(pGd.latitude),
                  lon: satellite.degreesLong(pGd.longitude)
              });

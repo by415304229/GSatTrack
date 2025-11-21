@@ -1,13 +1,18 @@
+
 import React, { useEffect, useRef, useState } from 'react';
-import { SatellitePos } from '../types';
+import { SatellitePos, GroundStation } from '../types';
 
 interface Map2DProps {
   satellites: SatellitePos[];
+  groundStations: GroundStation[];
   onSatClick?: (sat: SatellitePos) => void;
 }
 
 interface HoverData {
-    sat: SatellitePos;
+    id: string;
+    name: string;
+    type: 'SAT' | 'STATION';
+    data: any;
     x: number;
     y: number;
 }
@@ -22,30 +27,35 @@ const Tooltip = ({ data }: { data: HoverData }) => {
             }}
         >
             <div className="flex items-center justify-between border-b border-slate-800 pb-1 mb-1">
-                <span className="text-cyan-400 font-bold font-mono text-xs tracking-wider">{data.sat.name}</span>
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                <span className="text-cyan-400 font-bold font-mono text-xs tracking-wider">{data.name}</span>
+                {data.type === 'SAT' && <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>}
             </div>
-            <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[10px] font-mono text-slate-300">
-                <span className="text-slate-500">ALT</span>
-                <span className="text-right font-bold">{data.sat.alt.toFixed(1)} KM</span>
-                
-                <span className="text-slate-500">VEL</span>
-                <span className="text-right font-bold">{data.sat.velocity.toFixed(2)} KM/S</span>
-                
-                <span className="text-slate-500">LAT</span>
-                <span className="text-right font-bold">{data.sat.lat.toFixed(2)}°</span>
-                
-                <span className="text-slate-500">LON</span>
-                <span className="text-right font-bold">{data.sat.lon.toFixed(2)}°</span>
-            </div>
-            <div className="text-[9px] text-cyan-500/50 font-mono pt-1 border-t border-slate-800/50 mt-1">
-                ID: {data.sat.id} // CLICK FOR DETAILS
-            </div>
+            
+            {data.type === 'SAT' && (
+                <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[10px] font-mono text-slate-300">
+                    <span className="text-slate-500">ALT</span>
+                    <span className="text-right font-bold">{data.data.alt.toFixed(1)} KM</span>
+                    
+                    <span className="text-slate-500">VEL</span>
+                    <span className="text-right font-bold">{data.data.velocity.toFixed(2)} KM/S</span>
+                    
+                    <span className="text-slate-500">LAT</span>
+                    <span className="text-right font-bold">{data.data.lat.toFixed(2)}°</span>
+                    
+                    <span className="text-slate-500">LON</span>
+                    <span className="text-right font-bold">{data.data.lon.toFixed(2)}°</span>
+                </div>
+            )}
+            {data.type === 'STATION' && (
+                <div className="text-[10px] font-mono text-slate-300">
+                    GROUND STATION UPLINK ACTIVE
+                </div>
+            )}
         </div>
     )
 }
 
-const Map2D: React.FC<Map2DProps> = ({ satellites, onSatClick }) => {
+const Map2D: React.FC<Map2DProps> = ({ satellites, groundStations, onSatClick }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
@@ -62,7 +72,6 @@ const Map2D: React.FC<Map2DProps> = ({ satellites, onSatClick }) => {
   }, []);
 
   // Main Render Loop
-  // Handles resizing and drawing in the same frame to prevent sync issues
   useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
@@ -74,41 +83,31 @@ const Map2D: React.FC<Map2DProps> = ({ satellites, onSatClick }) => {
     let animationFrameId: number;
 
     const render = () => {
-      // 1. Dynamic Resizing (The "Game Loop" pattern)
-      // Check the actual display size of the canvas in CSS pixels
       const displayWidth = container.clientWidth;
       const displayHeight = container.clientHeight;
 
       if (displayWidth === 0 || displayHeight === 0) {
-          // Element is hidden or collapsed
           animationFrameId = requestAnimationFrame(render);
           return;
       }
 
-      // Check device pixel ratio
       const dpr = window.devicePixelRatio || 1;
-      
-      // Calculate required internal resolution
       const requiredWidth = Math.floor(displayWidth * dpr);
       const requiredHeight = Math.floor(displayHeight * dpr);
 
-      // Only resize if mismatch exists (prevents unnecessary buffer clearing)
       if (canvas.width !== requiredWidth || canvas.height !== requiredHeight) {
           canvas.width = requiredWidth;
           canvas.height = requiredHeight;
-          // Important: Context scale must be reset after resize
           ctx.scale(dpr, dpr);
       }
 
-      // 2. Drawing
-      // Use display dimensions for drawing logic
       const w = displayWidth;
       const h = displayHeight;
 
-      // Clear (using logical pixels)
+      // Draw
       ctx.clearRect(0, 0, w, h);
 
-      // Draw Background
+      // Background
       if (imageRef.current) {
         ctx.drawImage(imageRef.current, 0, 0, w, h);
       } else {
@@ -116,7 +115,7 @@ const Map2D: React.FC<Map2DProps> = ({ satellites, onSatClick }) => {
         ctx.fillRect(0, 0, w, h);
       }
 
-      // Draw Grid Lines
+      // Grid
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -124,10 +123,9 @@ const Map2D: React.FC<Map2DProps> = ({ satellites, onSatClick }) => {
       for(let y=0; y<=h; y+=h/6) { ctx.moveTo(0, y); ctx.lineTo(w, y); }
       ctx.stroke();
 
-      // Draw Orbit Lines
+      // Orbits
       ctx.globalAlpha = 0.6;
       ctx.lineWidth = 1.5;
-
       satellites.forEach(sat => {
         if (!sat.orbitPath || sat.orbitPath.length === 0) return;
         
@@ -146,7 +144,6 @@ const Map2D: React.FC<Map2DProps> = ({ satellites, onSatClick }) => {
                 ctx.moveTo(x, y);
                 firstPoint = false;
             } else {
-                // Handle Date Line crossing
                 const dist = Math.abs(x - prevX);
                 if (dist > w * 0.5) {
                     ctx.moveTo(x, y); 
@@ -158,25 +155,38 @@ const Map2D: React.FC<Map2DProps> = ({ satellites, onSatClick }) => {
         });
         ctx.stroke();
       });
-
       ctx.globalAlpha = 1.0;
 
-      // Draw Satellites
+      // Ground Stations
+      groundStations.forEach(station => {
+          const x = ((station.lon + 180) / 360) * w;
+          const y = ((90 - station.lat) / 180) * h;
+          
+          ctx.fillStyle = station.color;
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x - 4, y - 8);
+          ctx.lineTo(x + 4, y - 8);
+          ctx.fill();
+
+          ctx.font = '9px monospace';
+          ctx.fillStyle = 'white';
+          ctx.fillText(station.name.substring(0, 3).toUpperCase(), x + 6, y - 4);
+      });
+
+      // Satellites
       satellites.forEach(sat => {
         const x = ((sat.lon + 180) / 360) * w;
         const y = ((90 - sat.lat) / 180) * h;
-
         const color = sat.color || '#ffffff';
         
-        const isHovered = hoverData && hoverData.sat.id === sat.id;
+        const isHovered = hoverData && hoverData.type === 'SAT' && hoverData.id === sat.id;
         
-        // Marker
         ctx.fillStyle = isHovered ? '#fff' : color; 
         ctx.beginPath();
         ctx.arc(x, y, isHovered ? 4 : 2.5, 0, Math.PI * 2);
         ctx.fill();
         
-        // Glow
         ctx.shadowColor = isHovered ? '#06b6d4' : color;
         ctx.shadowBlur = isHovered ? 15 : 5;
         ctx.strokeStyle = isHovered ? '#06b6d4' : 'rgba(255,255,255,0.8)';
@@ -187,21 +197,15 @@ const Map2D: React.FC<Map2DProps> = ({ satellites, onSatClick }) => {
         ctx.shadowBlur = 0;
       });
 
-      // Keep looping
       animationFrameId = requestAnimationFrame(render);
     };
 
-    // Start Loop
     render();
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [satellites, groundStations, hoverData]);
 
-    // Cleanup
-    return () => {
-        cancelAnimationFrame(animationFrameId);
-    };
-  }, [satellites, hoverData]); // We do NOT depend on dimensions state anymore
-
-  // Interaction Handlers
-  const findSatelliteAtPos = (clientX: number, clientY: number): HoverData | null => {
+  // Interaction
+  const findObjectAtPos = (clientX: number, clientY: number): HoverData | null => {
       const canvas = canvasRef.current;
       const container = containerRef.current;
       if (!canvas || !container) return null;
@@ -209,41 +213,39 @@ const Map2D: React.FC<Map2DProps> = ({ satellites, onSatClick }) => {
       const rect = container.getBoundingClientRect();
       const x = clientX - rect.left;
       const y = clientY - rect.top;
-      
-      // Use logical dimensions
       const w = rect.width;
       const h = rect.height;
       
+      // Check Satellites
       for (const sat of satellites) {
           const satX = ((sat.lon + 180) / 360) * w;
           const satY = ((90 - sat.lat) / 180) * h;
-          // Simple Euclidean distance check
           const dist = Math.sqrt(Math.pow(x - satX, 2) + Math.pow(y - satY, 2));
-          
-          if (dist < 10) {
-              return { sat, x: clientX, y: clientY };
-          }
+          if (dist < 10) return { id: sat.id, name: sat.name, type: 'SAT', data: sat, x: clientX, y: clientY };
       }
+      
+      // Check Stations
+      for (const st of groundStations) {
+          const stX = ((st.lon + 180) / 360) * w;
+          const stY = ((90 - st.lat) / 180) * h;
+          const dist = Math.sqrt(Math.pow(x - stX, 2) + Math.pow(y - stY, 2));
+          if (dist < 10) return { id: st.id, name: st.name, type: 'STATION', data: st, x: clientX, y: clientY };
+      }
+
       return null;
   }
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-      const found = findSatelliteAtPos(e.clientX, e.clientY);
+      const found = findObjectAtPos(e.clientX, e.clientY);
       setHoverData(found);
-      if (canvasRef.current) {
-          canvasRef.current.style.cursor = found ? 'pointer' : 'default';
-      }
+      if (canvasRef.current) canvasRef.current.style.cursor = found ? 'pointer' : 'default';
   };
   
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-      const found = findSatelliteAtPos(e.clientX, e.clientY);
-      if (found && onSatClick) {
-          onSatClick(found.sat);
+      const found = findObjectAtPos(e.clientX, e.clientY);
+      if (found && found.type === 'SAT' && onSatClick) {
+          onSatClick(found.data);
       }
-  };
-
-  const handleMouseLeave = () => {
-      setHoverData(null);
   };
 
   return (
@@ -253,7 +255,7 @@ const Map2D: React.FC<Map2DProps> = ({ satellites, onSatClick }) => {
           className="block w-full h-full rounded bg-[#0f172a] border border-slate-800 shadow-inner cursor-crosshair absolute inset-0"
           style={{ width: '100%', height: '100%' }}
           onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
+          onMouseLeave={() => setHoverData(null)}
           onClick={handleClick}
         />
         {hoverData && <Tooltip data={hoverData} />}

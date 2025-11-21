@@ -137,17 +137,57 @@ const StationPanel = ({
     );
 };
 
+// --- View Mode Toggle ---
+const ViewToggle = ({ mode, onChange }: { mode: '3d' | '2d' | 'split', onChange: (mode: '3d' | '2d' | 'split') => void }) => {
+    return (
+        <div className="flex bg-slate-900 rounded border border-slate-700 overflow-hidden">
+            <button 
+                onClick={() => onChange('3d')}
+                className={clsx(
+                    "px-3 py-1.5 text-[10px] font-bold transition-colors flex items-center gap-1.5 border-r border-slate-800 last:border-0",
+                    mode === '3d' ? "bg-cyan-900 text-cyan-400" : "text-slate-400 hover:bg-slate-800"
+                )}
+            >
+                <Globe size={12} />
+                3D
+            </button>
+            <button 
+                onClick={() => onChange('2d')}
+                className={clsx(
+                    "px-3 py-1.5 text-[10px] font-bold transition-colors flex items-center gap-1.5 border-r border-slate-800 last:border-0",
+                    mode === '2d' ? "bg-cyan-900 text-cyan-400" : "text-slate-400 hover:bg-slate-800"
+                )}
+            >
+                <MapIcon size={12} />
+                2D
+            </button>
+            <button 
+                onClick={() => onChange('split')}
+                className={clsx(
+                    "px-3 py-1.5 text-[10px] font-bold transition-colors flex items-center gap-1.5",
+                    mode === 'split' ? "bg-cyan-900 text-cyan-400" : "text-slate-400 hover:bg-slate-800"
+                )}
+            >
+                <Activity size={12} />
+                SPLIT
+            </button>
+        </div>
+    );
+};
+
 // --- Main Monitor Component ---
 const PlaneMonitor = ({ 
     group, 
     active, 
     simulatedTime,
-    groundStations 
+    groundStations,
+    viewMode = 'split'
 }: { 
     group: OrbitalPlaneGroup; 
     active: boolean;
     simulatedTime: Date;
     groundStations: GroundStation[];
+    viewMode?: '3d' | '2d' | 'split';
 }) => {
   const [satellites, setSatellites] = useState<SatellitePos[]>([]);
   const [selectedSatId, setSelectedSatId] = useState<string | null>(null);
@@ -223,33 +263,69 @@ const PlaneMonitor = ({
         </div>
 
         {/* Views */}
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0 min-h-0">
-            <div className="relative flex flex-col border-b lg:border-b-0 lg:border-r border-slate-800">
-                <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-black/70 border border-slate-800 px-3 py-1 rounded-sm backdrop-blur-md pointer-events-none">
-                    <Globe size={14} className="text-cyan-400" />
-                    <span className="text-[10px] font-bold text-slate-200 tracking-widest font-mono">3D VISUALIZER</span>
+        <div className="flex-1 min-h-0">
+            {viewMode === '3d' && (
+                <div className="relative flex flex-col h-full">
+                    <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-black/70 border border-slate-800 px-3 py-1 rounded-sm backdrop-blur-md pointer-events-none">
+                        <Globe size={14} className="text-cyan-400" />
+                        <span className="text-[10px] font-bold text-slate-200 tracking-widest font-mono">3D VISUALIZER</span>
+                    </div>
+                    <div className="flex-1 bg-[#020617]">
+                        <Earth3D 
+                            satellites={satellites} 
+                            groundStations={groundStations} 
+                            onSatClick={handleSatClick} 
+                        />
+                    </div>
                 </div>
-                <div className="flex-1 bg-[#020617]">
-                    <Earth3D 
-                        satellites={satellites} 
-                        groundStations={groundStations} 
-                        onSatClick={handleSatClick} 
-                    />
+            )}
+            
+            {viewMode === '2d' && (
+                <div className="relative flex flex-col h-full">
+                    <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-black/70 border border-slate-800 px-3 py-1 rounded-sm backdrop-blur-md pointer-events-none">
+                        <MapIcon size={14} className="text-cyan-400" />
+                        <span className="text-[10px] font-bold text-slate-200 tracking-widest font-mono">GROUND TRACK</span>
+                    </div>
+                    <div className="flex-1 bg-[#020617]">
+                        <Map2D 
+                            satellites={satellites} 
+                            groundStations={groundStations} 
+                            onSatClick={handleSatClick} 
+                        />
+                    </div>
                 </div>
-            </div>
-            <div className="relative flex flex-col">
-                <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-black/70 border border-slate-800 px-3 py-1 rounded-sm backdrop-blur-md pointer-events-none">
-                    <MapIcon size={14} className="text-cyan-400" />
-                    <span className="text-[10px] font-bold text-slate-200 tracking-widest font-mono">GROUND TRACK</span>
+            )}
+            
+            {viewMode === 'split' && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 h-full">
+                    <div className="relative flex flex-col border-b lg:border-b-0 lg:border-r border-slate-800">
+                        <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-black/70 border border-slate-800 px-3 py-1 rounded-sm backdrop-blur-md pointer-events-none">
+                            <Globe size={14} className="text-cyan-400" />
+                            <span className="text-[10px] font-bold text-slate-200 tracking-widest font-mono">3D VISUALIZER</span>
+                        </div>
+                        <div className="flex-1 bg-[#020617]">
+                            <Earth3D 
+                                satellites={satellites} 
+                                groundStations={groundStations} 
+                                onSatClick={handleSatClick} 
+                            />
+                        </div>
+                    </div>
+                    <div className="relative flex flex-col">
+                        <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-black/70 border border-slate-800 px-3 py-1 rounded-sm backdrop-blur-md pointer-events-none">
+                            <MapIcon size={14} className="text-cyan-400" />
+                            <span className="text-[10px] font-bold text-slate-200 tracking-widest font-mono">GROUND TRACK</span>
+                        </div>
+                        <div className="flex-1 bg-[#020617]">
+                            <Map2D 
+                                satellites={satellites} 
+                                groundStations={groundStations} 
+                                onSatClick={handleSatClick} 
+                            />
+                        </div>
+                    </div>
                 </div>
-                <div className="flex-1 bg-[#020617]">
-                    <Map2D 
-                        satellites={satellites} 
-                        groundStations={groundStations} 
-                        onSatClick={handleSatClick} 
-                    />
-                </div>
-            </div>
+            )}
         </div>
     </div>
   );
@@ -266,6 +342,9 @@ export default function App() {
   const [timeRate, setTimeRate] = useState(1);
   const [isPaused, setIsPaused] = useState(false);
   const lastRafTime = useRef(Date.now());
+
+  // View Mode State
+  const [viewMode, setViewMode] = useState<'3d' | '2d' | 'split'>('3d');
 
   // Ground Stations State
   const [stations, setStations] = useState<GroundStation[]>([
@@ -342,6 +421,7 @@ export default function App() {
                 onChangeRate={setTimeRate}
                 onReset={() => { setSimTime(new Date()); setTimeRate(1); setIsPaused(false); }}
              />
+             <ViewToggle mode={viewMode} onChange={setViewMode} />
              <StationPanel 
                 stations={stations} 
                 onAdd={handleAddStation} 
@@ -390,6 +470,7 @@ export default function App() {
                                 active={true} 
                                 simulatedTime={simTime}
                                 groundStations={stations}
+                                viewMode={viewMode}
                              />
                          </div>
                      );

@@ -33,22 +33,22 @@ const Tooltip = ({ data }: { data: HoverData }) => {
             
             {data.type === 'SAT' && (
                 <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[10px] font-mono text-slate-300">
-                    <span className="text-slate-500">高度</span>
+                    <span className="text-slate-500 text-zh">高度</span>
                     <span className="text-right font-bold">{data.data.alt.toFixed(1)} KM</span>
                      
-                    <span className="text-slate-500">速度</span>
+                    <span className="text-slate-500 text-zh">速度</span>
                     <span className="text-right font-bold">{data.data.velocity.toFixed(2)} KM/S</span>
                      
-                    <span className="text-slate-500">纬度</span>
+                    <span className="text-slate-500 text-zh">纬度</span>
                     <span className="text-right font-bold">{data.data.lat.toFixed(2)}°</span>
                      
-                    <span className="text-slate-500">经度</span>
+                    <span className="text-slate-500 text-zh">经度</span>
                     <span className="text-right font-bold">{data.data.lon.toFixed(2)}°</span>
                 </div>
             )}
             {data.type === 'STATION' && (
                 <div className="text-[10px] font-mono text-slate-300">
-                    地面站上行链路激活
+                    <span className="text-zh">地面站上行链路激活</span>
                 </div>
             )}
         </div>

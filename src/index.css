@@ -1,3 +1,17 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* 为中文文本设置稍微大一点的字体 */
+@layer base {
+  /* 为特定大小的文本增加1-2px字号 */
+  .text-xs:lang(zh-CN),
+  .text-xs:has(.text-zh) {
+    font-size: 0.875rem;
+  }
+  
+  .text-sm:lang(zh-CN),
+  .text-sm:has(.text-zh) {
+    font-size: 0.9375rem;
+  }
+}

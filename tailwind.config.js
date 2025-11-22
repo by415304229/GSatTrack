@@ -6,7 +6,12 @@ export default {
     "./**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        sans: ['Noto Sans SC', 'Microsoft YaHei', 'sans-serif'],
+        mono: ['Noto Sans SC', 'Microsoft YaHei', 'monospace'],
+      },
+    },
   },
   plugins: [],
 }

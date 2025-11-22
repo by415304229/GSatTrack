@@ -90,12 +90,12 @@ const StationPanel = ({
                 className="flex items-center gap-2 px-3 py-1.5 bg-[#0B1120] border border-slate-800 rounded-md hover:border-cyan-500/50 transition-colors"
             >
                 <MapPin size={14} className="text-emerald-500" />
-                <span className="text-xs font-mono">STATIONS ({stations.length})</span>
+                <span className="text-xs font-mono text-zh">地面站 ({stations.length})</span>
             </button>
 
             {isOpen && (
                 <div className="absolute top-full right-0 mt-2 w-64 bg-[#020617] border border-slate-700 rounded-md shadow-xl z-50 p-4">
-                    <h3 className="text-xs font-bold text-white mb-3 flex justify-between">
+                    <h3 className="text-xs font-bold text-white mb-3 flex justify-between text-zh">
                         地面站
                         <button onClick={() => setIsOpen(false)}><Plus size={14} className="rotate-45" /></button>
                     </h3>
@@ -107,7 +107,7 @@ const StationPanel = ({
                                 <button onClick={() => onRemove(st.id)} className="text-red-400 hover:text-red-300">DEL</button>
                             </div>
                         ))}
-                        {stations.length === 0 && <div className="text-[10px] text-slate-600 italic">无活动地面站</div>}
+                        {stations.length === 0 && <div className="text-[10px] text-slate-600 italic text-zh">无活动地面站</div>}
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-2 border-t border-slate-800 pt-3">
@@ -133,7 +133,7 @@ const StationPanel = ({
                                 onChange={e => setNewLon(e.target.value)}
                             />
                         </div>
-                        <button className="w-full py-1 bg-cyan-700 hover:bg-cyan-600 rounded text-xs font-bold">添加地面站</button>
+                        <button className="w-full py-1 bg-cyan-700 hover:bg-cyan-600 rounded text-xs font-bold text-zh">添加地面站</button>
                     </form>
                 </div>
             )}
@@ -214,7 +214,7 @@ const SettingsPanel = ({
                 <div className="flex items-center justify-between p-4 border-b border-slate-700">
                     <h2 className="text-sm font-bold text-white flex items-center gap-2">
                         <Settings size={16} className="text-cyan-400" />
-                        SETTINGS
+                        <span className="text-zh">设置</span>
                     </h2>
                     <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
                         <X size={16} />
@@ -225,7 +225,7 @@ const SettingsPanel = ({
                 <div className="flex-1 overflow-y-auto p-4 space-y-6">
                     {/* Orbit Window Settings */}
                     <div className="space-y-3">
-                        <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wide">Orbit Window</h3>
+                        <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wide text-zh">轨道窗口</h3>
                         <div className="space-y-2">
                             <div className="flex items-center gap-2">
                                 <input 
@@ -237,17 +237,17 @@ const SettingsPanel = ({
                                     max="120" 
                                     step="0.1"
                                 />
-                                <span className="text-xs text-slate-400">minutes</span>
+                                <span className="text-xs text-slate-400 text-zh">分钟</span>
                             </div>
-                            <div className="text-[10px] text-slate-500">
-                                Current: {orbitWindowMinutes} minutes | Range: 1-120 minutes
+                            <div className="text-[10px] text-slate-500 text-zh">
+                                当前: {orbitWindowMinutes} 分钟 | 范围: 1-120 分钟
                             </div>
                         </div>
                     </div>
 
                     {/* Satellite Selection */}
                     <div className="space-y-3">
-                        <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wide">卫星跟踪</h3>
+                        <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wide text-zh">卫星跟踪</h3>
                         {/* 查找框 */}
                     <div className="mb-3">
                         <input
@@ -263,19 +263,18 @@ const SettingsPanel = ({
                     <div className="mb-3 flex items-center gap-2">
                         <button
                             onClick={handleSelectAll}
-                            className="px-3 py-1 text-[10px] bg-cyan-900 hover:bg-cyan-800 text-cyan-300 rounded-md transition-colors"
-                        >
-                            {(() => {
-                                const allFilteredSelected = filteredSatellites.every(sat => selectedSatellites.has(sat.id));
-                                const hasPartialSelection = filteredSatellites.some(sat => selectedSatellites.has(sat.id)) && !allFilteredSelected;
-                                
-                                if (allFilteredSelected) return '取消全选';
-                                if (hasPartialSelection) return '反选';
-                                return '全选';
-                            })()}
+                            className="px-3 py-1 text-[10px] bg-cyan-900 hover:bg-cyan-800 text-cyan-300 rounded-md transition-colors text-zh">
+                        {(() => {
+                            const allFilteredSelected = filteredSatellites.every(sat => selectedSatellites.has(sat.id));
+                            const hasPartialSelection = filteredSatellites.some(sat => selectedSatellites.has(sat.id)) && !allFilteredSelected;
+                            
+                            if (allFilteredSelected) return '取消全选';
+                            if (hasPartialSelection) return '反选';
+                            return '全选';
+                        })()}
                         </button>
-                        <span className="text-[10px] text-slate-500">
-                            {selectedSatellites.size}/{filteredSatellites.length} selected
+                        <span className="text-[10px] text-slate-500 text-zh">
+                            已选择: {selectedSatellites.size}/{filteredSatellites.length}
                         </span>
                     </div>
 
@@ -298,8 +297,8 @@ const SettingsPanel = ({
                             <div className="text-[10px] text-slate-600 italic p-2">没有匹配的卫星</div>
                         )}
                     </div>
-                        <div className="text-[10px] text-slate-500">
-                            Selected: {selectedSatellites.size} / {availableSatellites.length} satellites
+                        <div className="text-[10px] text-slate-500 text-zh">
+                            已选择: {selectedSatellites.size} / {availableSatellites.length} 颗卫星
                         </div>
                     </div>
                 </div>

@@ -215,8 +215,8 @@ const Earth3D: React.FC<EarthProps> = ({ satellites, groundStations, onSatClick 
                 className="fixed z-50 pointer-events-none p-2 bg-black/80 border border-slate-700 rounded text-xs font-mono text-white shadow-xl backdrop-blur"
                 style={{ left: hoverData.x + 20, top: hoverData.y }}
              >
-                <div className="font-bold text-cyan-400">{hoverData.name}</div>
-                <div className="text-[10px] text-slate-400">{hoverData.type}</div>
+                <div className="font-bold text-cyan-400 text-zh">{hoverData.name}</div>
+                <div className="text-[10px] text-slate-400 text-zh">{hoverData.type}</div>
              </div>
         )}
 

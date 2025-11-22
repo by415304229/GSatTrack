@@ -42,7 +42,7 @@ const SatelliteDetail: React.FC<SatelliteDetailProps> = ({ sat, onClose }) => {
                 <Radio size={20} className="text-cyan-400 animate-pulse" />
              </div>
              <div>
-                 <div className="text-[10px] text-slate-400 font-mono uppercase tracking-widest">目标锁定</div>
+                 <div className="text-[10px] text-slate-400 font-mono uppercase tracking-widest text-zh">目标锁定</div>
                  <h2 className="text-white font-bold font-mono text-lg leading-none truncate max-w-[200px]">{sat.name}</h2>
              </div>
         </div>
@@ -60,8 +60,8 @@ const SatelliteDetail: React.FC<SatelliteDetailProps> = ({ sat, onClose }) => {
           <div className="flex items-center gap-4 p-4 bg-emerald-950/30 border border-emerald-900/50 rounded">
               <ShieldCheck className="text-emerald-500" size={24} />
               <div>
-                  <div className="text-emerald-400 font-bold font-mono text-sm">系统最佳</div>
-                  <div className="text-emerald-600 text-[10px] font-mono">遥测数据流激活</div>
+                  <div className="text-emerald-400 font-bold font-mono text-sm text-zh">系统最佳</div>
+                  <div className="text-emerald-600 text-[10px] font-mono text-zh">遥测数据流激活</div>
               </div>
               <div className="ml-auto text-emerald-500 font-mono font-bold text-xl">100%</div>
           </div>
@@ -69,23 +69,23 @@ const SatelliteDetail: React.FC<SatelliteDetailProps> = ({ sat, onClose }) => {
           {/* Telemetry Grid */}
           <div>
               <h3 className="text-xs font-bold text-slate-500 font-mono mb-3 flex items-center gap-2">
-                  <Activity size={12} /> 实时遥测
+                  <Activity size={12} /> <span className="text-zh">实时遥测</span>
               </h3>
               <div className="grid grid-cols-2 gap-3">
                   <div className="bg-slate-900/50 p-3 rounded border border-slate-800">
-                      <div className="text-[10px] text-slate-500 font-mono mb-1">高度</div>
+                      <div className="text-[10px] text-slate-500 font-mono mb-1 text-zh">高度</div>
                       <div className="text-2xl font-mono text-white">{sat.alt.toFixed(1)} <span className="text-xs text-slate-500">KM</span></div>
                   </div>
                   <div className="bg-slate-900/50 p-3 rounded border border-slate-800">
-                      <div className="text-[10px] text-slate-500 font-mono mb-1">速度</div>
+                      <div className="text-[10px] text-slate-500 font-mono mb-1 text-zh">速度</div>
                       <div className="text-2xl font-mono text-white">{sat.velocity.toFixed(2)} <span className="text-xs text-slate-500">KM/S</span></div>
                   </div>
                   <div className="bg-slate-900/50 p-3 rounded border border-slate-800">
-                      <div className="text-[10px] text-slate-500 font-mono mb-1">纬度</div>
+                      <div className="text-[10px] text-slate-500 font-mono mb-1 text-zh">纬度</div>
                       <div className="text-xl font-mono text-white">{sat.lat.toFixed(4)}°</div>
                   </div>
                   <div className="bg-slate-900/50 p-3 rounded border border-slate-800">
-                      <div className="text-[10px] text-slate-500 font-mono mb-1">经度</div>
+                      <div className="text-[10px] text-slate-500 font-mono mb-1 text-zh">经度</div>
                       <div className="text-xl font-mono text-white">{sat.lon.toFixed(4)}°</div>
                   </div>
               </div>
@@ -94,15 +94,15 @@ const SatelliteDetail: React.FC<SatelliteDetailProps> = ({ sat, onClose }) => {
           {/* Orbital Parameters */}
           <div>
               <h3 className="text-xs font-bold text-slate-500 font-mono mb-3 flex items-center gap-2">
-                  <Globe size={12} /> 轨道参数
+                  <Globe size={12} /> <span className="text-zh">轨道参数</span>
               </h3>
               <div className="bg-slate-900/30 rounded border border-slate-800 divide-y divide-slate-800/50">
                    <div className="p-3 flex justify-between items-center">
-                       <span className="text-xs text-slate-400 font-mono">倾角</span>
+                       <span className="text-xs text-slate-400 font-mono text-zh">倾角</span>
                        <span className="text-sm text-cyan-400 font-mono">{inclination}</span>
                    </div>
                    <div className="p-3 flex justify-between items-center">
-                       <span className="text-xs text-slate-400 font-mono">轨道周期</span>
+                       <span className="text-xs text-slate-400 font-mono text-zh">轨道周期</span>
                        <span className="text-sm text-cyan-400 font-mono">{period}</span>
                    </div>
                    <div className="p-3 flex justify-between items-center">
@@ -116,7 +116,7 @@ const SatelliteDetail: React.FC<SatelliteDetailProps> = ({ sat, onClose }) => {
           {sat.tle && (
               <div>
                   <h3 className="text-xs font-bold text-slate-500 font-mono mb-3 flex items-center gap-2">
-                      <Clock size={12} /> 两行轨道根数
+                      <Clock size={12} /> <span className="text-zh">两行轨道根数</span>
                   </h3>
                   <div className="bg-black p-3 rounded border border-slate-800 font-mono text-[10px] text-emerald-500/80 break-all leading-relaxed">
                       <div>{sat.tle.line1}</div>
@@ -128,7 +128,7 @@ const SatelliteDetail: React.FC<SatelliteDetailProps> = ({ sat, onClose }) => {
       
       <div className="p-4 border-t border-slate-800 bg-[#020617]">
           <button className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-bold font-mono text-xs rounded tracking-widest transition-colors flex items-center justify-center gap-2">
-              开始跟踪锁定
+              <span className="text-zh">开始跟踪锁定</span>
           </button>
       </div>
     </div>

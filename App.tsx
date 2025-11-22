@@ -424,9 +424,7 @@ const PlaneMonitor = ({
                 <div>
                     <h2 className="font-mono font-bold text-base text-slate-100 tracking-widest uppercase">{group.name}</h2>
                     <div className="flex items-center gap-2 text-[10px] text-cyan-500/70 font-mono">
-                        <span>状态: 轨道运行中</span>
-                        <span>•</span>
-                        <span>跟踪中: {satellites.length}</span>
+                        <span>跟踪数量: {satellites.length}</span>
                     </div>
                 </div>
             </div>
@@ -582,10 +580,11 @@ export default function App() {
             </div>
             <div>
                 <h1 className="font-black text-xl leading-none tracking-tighter text-white">
-                    ORBITAL<span className="text-cyan-500">OPS</span>
+                    格思航天
+                    <span className="text-cyan-500">长管系统</span>
                 </h1>
                 <div className="text-[10px] text-cyan-600 font-mono tracking-[0.2em] uppercase mt-1">
-                    全球卫星跟踪系统
+                    全球卫星跟踪
                 </div>
             </div>
         </div>

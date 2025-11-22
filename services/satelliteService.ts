@@ -84,9 +84,17 @@ export const fetchSatelliteGroups = async (): Promise<OrbitalPlaneGroup[]> => {
       url: '/data/StarLink.txt' // Using local TLE file
     }
   ];
+  
+  // Check if running in production and adjust paths if needed
+  const isDev = import.meta.env.DEV;
+  const adjustedSources = sources.map(source => ({
+    ...source,
+    // In Vite, files in public folder are served from root, no need for '/public' prefix
+    url: source.url
+  }));
 
   try {
-    for (const source of sources) {
+    for (const source of adjustedSources) {
         let text = '';
         let tles: TLEData[] = [];
         

@@ -8,6 +8,7 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        allowedHosts: ['gsat.by1994.top', 'by1994.top', 'localhost', '127.0.0.1'],
         fs: {
           // 允许开发服务器访问项目根目录下的data文件夹
           allow: ['.', '../']

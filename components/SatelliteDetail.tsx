@@ -1,5 +1,5 @@
 import React from 'react';
-import { SatellitePos } from '../types';
+import { type SatellitePos } from '../types';
 import { X, Radio, ShieldCheck, Activity, Clock, Globe } from 'lucide-react';
 
 interface satellitedetailprops {

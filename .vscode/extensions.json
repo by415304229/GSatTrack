@@ -1,0 +1,15 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "stylelint.vscode-stylelint",
+    "ms-vscode.vscode-typescript-next",
+    "esbenp.prettier-vscode",
+    "formulahendry.auto-close-tag",
+    "formulahendry.auto-rename-tag",
+    "github.vscode-pull-request-github",
+    "eamodio.gitlens",
+    "xabikos.JavaScriptSnippets",
+    "mgmcdermott.vscode-language-babel",
+    "streetsidesoftware.code-spell-checker"
+  ]
+}

@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { FileText } from 'lucide-react';
 import { fetchSatelliteGroups } from './services/satelliteService';
 import { getSatellitePosition, calculateOrbitPath } from './utils/satMath';
-import { OrbitalPlaneGroup, SatellitePos, GroundStation } from './types';
+import { type OrbitalPlaneGroup, type SatellitePos, type GroundStation } from './types';
 import Earth3D from './components/Earth3D';
 import Map2D from './components/Map2D';
 import SatelliteDetail from './components/SatelliteDetail';

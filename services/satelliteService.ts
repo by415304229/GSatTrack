@@ -1,5 +1,5 @@
 
-import { TLEData, OrbitalPlaneGroup, SatelliteGroup } from '../types';
+import { type TLEData, type OrbitalPlaneGroup, type SatelliteGroup } from '../types';
 
 // 使用从types.ts导入的TLEData类型，并确保updatedAt字段存在
 export type SatelliteTLE = TLEData & { updatedAt?: Date };

@@ -2,44 +2,80 @@
 const js = require('@eslint/js');
 const tsParser = require('@typescript-eslint/parser');
 const tsPlugin = require('@typescript-eslint/eslint-plugin');
+const reactPlugin = require('eslint-plugin-react');
+const reactHooksPlugin = require('eslint-plugin-react-hooks');
 
-// Create a basic configuration that can handle TypeScript and JSX
 module.exports = [
-  // Ignore patterns
-  { ignores: ['node_modules/', 'dist/', 'build/', 'coverage/', '*.config.js', '*.config.cjs', '*.config.mjs', '*.config.ts', '*.tsbuildinfo', '.DS_Store', 'Thumbs.db', '*.env', '*.env.*'] },
-  
-  // For TypeScript and TSX files
+  // Common configuration
+  {
+    ignores: ['node_modules/**', 'dist/**', 'coverage/**', 'build/**'],
+  },
+  // Base configuration
+  {
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+    },
+    rules: {
+      // Base ESLint rules
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
+      'no-debugger': 'warn',
+    },
+  },
+  // React configuration
+  {
+    files: ['**/*.{jsx,tsx}'],
+    languageOptions: {
+      parserOptions: {
+        jsx: true,
+      },
+    },
+    plugins: {
+      react: reactPlugin,
+      'react-hooks': reactHooksPlugin,
+    },
+    settings: {
+      react: {
+        version: 'detect',
+      },
+    },
+    rules: {
+      // React specific rules
+      'react/prop-types': 'off',
+      'react/react-in-jsx-scope': 'off',
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
+    },
+  },
+  // TypeScript configuration
   {
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
       parser: tsParser,
-      ecmaVersion: 'latest',
-      sourceType: 'module',
+      parserOptions: {
+        project: './tsconfig.json',
+        tsconfigRootDir: __dirname,
+      },
     },
     plugins: {
       '@typescript-eslint': tsPlugin,
     },
     rules: {
-      // Basic ESLint rules
-      'no-unused-vars': 'off',
-      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
-      'no-console': 'warn',
-      'no-debugger': 'warn',
+      // TypeScript-specific rules - simplified for compatibility
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/explicit-function-return-type': 'warn',
+      '@typescript-eslint/explicit-module-boundary-types': 'warn',
+      '@typescript-eslint/consistent-type-imports': ['warn', { prefer: 'type-imports' }],
+      // 暂时禁用命名规范检查，避免大规模重构
+      '@typescript-eslint/naming-convention': 'warn',
     },
   },
-  
-  // For JavaScript and JSX files
+  // Test files configuration
   {
-    files: ['**/*.{js,jsx}'],
-    languageOptions: {
-      ecmaVersion: 'latest',
-      sourceType: 'module',
-    },
+    files: ['**/*.test.{js,jsx,ts,tsx}', '**/__tests__/**'],
     rules: {
-      // Basic ESLint rules
-      'no-unused-vars': 'warn',
-      'no-console': 'warn',
-      'no-debugger': 'warn',
+      'no-console': 'off',
+      'no-debugger': 'off',
     },
   },
 ];

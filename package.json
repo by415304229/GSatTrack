@@ -5,13 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && npm run lint:css --fix && vite build",
+    "build": "tsc && npm run lint --fix && vite build",
     "preview": "vite preview",
     "test": "jest",
     "lint": "eslint . --ext ts,tsx,js,jsx && stylelint '**/*.{css,scss,sass,less,styl}'",
     "lint:fix": "eslint . --ext ts,tsx,js,jsx --fix && stylelint '**/*.{css,scss,sass,less,styl}' --fix",
-    "lint:css": "stylelint '**/*.{css,scss,sass,less,styl}'",
-    "lint:css:fix": "stylelint '**/*.{css,scss,sass,less,styl}' --fix"
+    "type-check": "tsc --noEmit",
+    "prepare": "husky install"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": ["eslint --fix"],
+    "*.{css,scss,sass,less,styl}": ["stylelint --fix"],
+    "*.{ts,tsx}": ["tsc --noEmit --skipLibCheck"]
   },
   "dependencies": {
     "@react-three/drei": "9.99.0",
@@ -48,6 +53,9 @@
     "ts-jest": "^29.4.5",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",
-    "vite-plugin-stylelint": "^6.0.2"
+    "vite-plugin-eslint": "^1.8.1",
+    "vite-plugin-stylelint": "^6.0.2",
+    "husky": "^8.0.0",
+    "lint-staged": "^15.0.0"
   }
 }

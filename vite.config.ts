@@ -2,6 +2,7 @@ import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import stylelintPlugin from 'vite-plugin-stylelint';
+import eslint from 'vite-plugin-eslint';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
@@ -25,6 +26,17 @@ export default defineConfig(({ mode }) => {
           lintOnStart: true,
           // 保存时自动修复
           fix: true
+        }),
+        eslint({
+          // 配置ESLint插件
+          include: ['**/*.{ts,tsx,js,jsx}'],
+          exclude: ['node_modules/', 'dist/', 'build/'],
+          // 开发时不阻止构建
+          failOnError: false,
+          // 启用自动修复
+          fix: true,
+          // 启用缓存提高性能
+          cache: true
         })
       ],
       define: {

@@ -1,9 +1,9 @@
 
 import React, { useMemo, useRef, useState, Suspense, useEffect } from 'react';
-import { Canvas, useFrame, extend, useLoader, useThree, ThreeEvent } from '@react-three/fiber';
+import { Canvas, useFrame, extend, useLoader, useThree, type ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import * as THREE from 'three';
-import { SatellitePos, GroundStation } from '../types';
+import { type SatellitePos, type GroundStation } from '../types';
 import { latLonToScene } from '../utils/satMath';
 
 // Extend Three.js components for JSX compatibility

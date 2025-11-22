@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-import { SatellitePos, GroundStation } from '../types';
+import { type SatellitePos, type GroundStation } from '../types';
 
 interface map2dprops {
   satellites: SatellitePos[];

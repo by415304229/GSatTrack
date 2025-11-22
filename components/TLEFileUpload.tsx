@@ -1,20 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, FileText, X, AlertCircle } from 'lucide-react';
 import { validateTLEContent } from '../utils/tleValidator';
-import { parseTLEContent, ParsedSatellite } from '../utils/tleParser';
+import { parseTLEContent, type ParsedSatellite } from '../utils/tleParser';
 
 import {
   createError,
   validateFile,
   getErrorClassName,
-  TLEImportError,
+  type TLEImportError,
   TLEImportErrorType,
   handleError,
   handleAsyncError
 } from '../utils/errorHandler';
 import { fetchSatelliteGroups, updateSatelliteGroup, createSatelliteGroup } from '../services/satelliteService';
 import type { SatelliteTLE } from '../services/satelliteService';
-import { SatelliteGroup } from '../types';
+import { type SatelliteGroup } from '../types';
 
 interface tlefileuploadprops {
   onFileUpload: (file: File, content: string, parsedsatellites: ParsedSatellite[]) => void;

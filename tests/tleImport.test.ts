@@ -20,7 +20,7 @@ import {
 } from '../utils/errorHandler';
 
 // 导入SatelliteTLE接口用于测试数据转换
-import { SatelliteTLE } from '../services/satelliteService';
+import { type SatelliteTLE } from '../services/satelliteService';
 
 // Mock File object for testing
 class MockFile extends File {

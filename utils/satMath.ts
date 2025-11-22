@@ -1,6 +1,6 @@
 
 import * as satellite from 'satellite.js';
-import { TLEData, SatellitePos } from '../types';
+import { type TLEData, type SatellitePos } from '../types';
 
 const EARTH_RADIUS_KM = 6371;
 

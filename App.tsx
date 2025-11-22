@@ -1,12 +1,14 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { FileText } from 'lucide-react';
 import { fetchSatelliteGroups } from './services/satelliteService';
 import { getSatellitePosition, calculateOrbitPath } from './utils/satMath';
 import { OrbitalPlaneGroup, SatellitePos, GroundStation } from './types';
 import Earth3D from './components/Earth3D';
 import Map2D from './components/Map2D';
 import SatelliteDetail from './components/SatelliteDetail';
-import { Activity, Globe, Map as MapIcon, RefreshCw, Satellite, Zap, Radio, Play, Pause, FastForward, Plus, MapPin, Clock, Settings, X } from 'lucide-react';
+import TLEFileUpload from './components/TLEFileUpload';
+import { Activity, Globe, Map as MapIcon, RefreshCw, Satellite, Zap, Radio, Play, Pause, FastForward, Plus, MapPin, Clock, Settings, X, Upload, FileDown } from 'lucide-react';
 import clsx from 'clsx';
 
 const ORBIT_COLORS = ['#06b6d4', '#3b82f6'];
@@ -508,6 +510,7 @@ export default function App() {
   const [groups, setGroups] = useState<OrbitalPlaneGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeGroups, setActiveGroups] = useState<string[]>([]);
+  const [showTLEImport, setShowTLEImport] = useState(false);
   
   // Time Simulation State
   const [simTime, setSimTime] = useState(new Date());
@@ -570,6 +573,36 @@ export default function App() {
       setStations(prev => prev.filter(s => s.id !== id));
   };
 
+  // 处理TLE文件导入
+  const handleTLEImport = (file: File, content: string, parsedSatellites: any[]) => {
+    // 确保导入的卫星数据有效
+    if (!parsedSatellites || parsedSatellites.length === 0) {
+      return;
+    }
+
+    // 创建新的轨道平面组
+    const groupName = file.name.replace('.txt', '').replace('.tle', '');
+    const newGroupId = `imported-${Date.now()}`;
+    const newGroup: OrbitalPlaneGroup = {
+      id: newGroupId,
+      name: groupName || `导入卫星组`,
+      description: `导入的卫星组 - ${groupName || '未命名组'}`,
+      tles: parsedSatellites.map(sat => ({
+        name: sat.name,
+        satId: sat.satId,
+        line1: sat.line1,
+        line2: sat.line2
+      }))
+    };
+
+    // 更新组列表
+    setGroups(prev => [...prev, newGroup]);
+    // 激活新导入的组
+    setActiveGroups([newGroupId]);
+    // 关闭导入界面
+    setShowTLEImport(false);
+  };
+
   return (
     <div className="flex flex-col h-screen w-screen bg-[#020617] text-slate-100 overflow-hidden font-sans">
       {/* Top Bar */}
@@ -591,6 +624,13 @@ export default function App() {
 
         {/* Center Controls */}
         <div className="flex items-center gap-4">
+             <button 
+                onClick={() => setShowTLEImport(true)}
+                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 rounded border border-slate-700 text-[10px] font-bold transition-colors flex items-center gap-1.5"
+             >
+                <FileText size={12} />
+                导入TLE
+             </button>
              <TimeControls 
                 time={simTime} 
                 rate={timeRate} 
@@ -693,6 +733,35 @@ export default function App() {
         }}
         availableSatellites={groups.flatMap(g => g.tles || []).map(tle => ({ id: tle.satId, name: tle.name }))}
       />
+
+      {/* TLE File Import Modal */}
+      {showTLEImport && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+          <div className="bg-[#020617] border border-slate-700 rounded-md shadow-2xl w-[90%] max-w-2xl max-h-[80vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-slate-700">
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                <FileDown size={16} className="text-cyan-400" />
+                <span>TLE文件导入</span>
+              </h2>
+              <button 
+                onClick={() => setShowTLEImport(false)}
+                className="text-slate-400 hover:text-white transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            
+            {/* Content */}
+            <div className="flex-1 p-4 overflow-y-auto">
+              <TLEFileUpload 
+                onFileUpload={handleTLEImport}
+                // TLEFileUpload组件没有onClose属性，通过其他方式控制显示/隐藏
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

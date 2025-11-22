@@ -85,8 +85,8 @@ export const fetchSatelliteGroups = async (): Promise<OrbitalPlaneGroup[]> => {
     }
   ];
   
-  // Check if running in production and adjust paths if needed
-  const isDev = import.meta.env.DEV;
+  // Check if running in development environment
+  const isDev = process.env.NODE_ENV !== 'production';
   const adjustedSources = sources.map(source => ({
     ...source,
     // In Vite, files in public folder are served from root, no need for '/public' prefix

@@ -33,14 +33,14 @@ const TimeControls = ({
     return (
         <div className="flex items-center gap-4 bg-[#0B1120] border border-slate-800 rounded-md px-3 py-1.5">
             <div className="font-mono text-xs text-cyan-400">
-                <div>UTC: {time.toISOString().replace('T', ' ').substring(0, 19)}</div>
-                <div className="text-emerald-400 text-[10px]">Local: {shanghaiTime.toISOString().replace('T', ' ').substring(0, 19)}</div>
+                <div>UTC时间: {time.toISOString().replace('T', ' ').substring(0, 19)}</div>
+                <div className="text-emerald-400 text-[10px]">本地时间: {shanghaiTime.toISOString().replace('T', ' ').substring(0, 19)}</div>
             </div>
             <div className="h-4 w-[1px] bg-slate-700"></div>
             <button onClick={onTogglePause} className="hover:text-cyan-400 transition-colors">
                 {paused ? <Play size={16} fill="currentColor" /> : <Pause size={16} fill="currentColor" />}
             </button>
-            <button onClick={onReset} className="text-[10px] font-bold hover:text-cyan-400 px-2">LIVE</button>
+            <button onClick={onReset} className="text-[10px] font-bold hover:text-cyan-400 px-2">实时</button>
             <div className="flex bg-slate-900 rounded border border-slate-700 overflow-hidden">
                 {[1, 10, 100, 1000].map(r => (
                     <button 
@@ -96,7 +96,7 @@ const StationPanel = ({
             {isOpen && (
                 <div className="absolute top-full right-0 mt-2 w-64 bg-[#020617] border border-slate-700 rounded-md shadow-xl z-50 p-4">
                     <h3 className="text-xs font-bold text-white mb-3 flex justify-between">
-                        GROUND STATIONS
+                        地面站
                         <button onClick={() => setIsOpen(false)}><Plus size={14} className="rotate-45" /></button>
                     </h3>
                     
@@ -107,33 +107,33 @@ const StationPanel = ({
                                 <button onClick={() => onRemove(st.id)} className="text-red-400 hover:text-red-300">DEL</button>
                             </div>
                         ))}
-                        {stations.length === 0 && <div className="text-[10px] text-slate-600 italic">No active stations</div>}
+                        {stations.length === 0 && <div className="text-[10px] text-slate-600 italic">无活动地面站</div>}
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-2 border-t border-slate-800 pt-3">
                         <input 
                             className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs" 
-                            placeholder="Station Name" 
+                            placeholder="地面站名称" 
                             value={newName}
                             onChange={e => setNewName(e.target.value)}
                         />
                         <div className="flex gap-2">
                             <input 
                                 className="w-1/2 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs" 
-                                placeholder="Lat" 
+                                placeholder="纬度" 
                                 type="number"
                                 value={newLat}
                                 onChange={e => setNewLat(e.target.value)}
                             />
                             <input 
                                 className="w-1/2 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs" 
-                                placeholder="Lon" 
+                                placeholder="经度" 
                                 type="number"
                                 value={newLon}
                                 onChange={e => setNewLon(e.target.value)}
                             />
                         </div>
-                        <button className="w-full py-1 bg-cyan-700 hover:bg-cyan-600 rounded text-xs font-bold">ADD STATION</button>
+                        <button className="w-full py-1 bg-cyan-700 hover:bg-cyan-600 rounded text-xs font-bold">添加地面站</button>
                     </form>
                 </div>
             )}
@@ -247,12 +247,12 @@ const SettingsPanel = ({
 
                     {/* Satellite Selection */}
                     <div className="space-y-3">
-                        <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wide">Satellite Tracking</h3>
+                        <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wide">卫星跟踪</h3>
                         {/* 查找框 */}
                     <div className="mb-3">
                         <input
                             type="text"
-                            placeholder="Search satellite name or ID..."
+                            placeholder="搜索卫星名称或ID..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full px-3 py-2 border border-slate-700 rounded-md bg-slate-900 text-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500"
@@ -269,9 +269,9 @@ const SettingsPanel = ({
                                 const allFilteredSelected = filteredSatellites.every(sat => selectedSatellites.has(sat.id));
                                 const hasPartialSelection = filteredSatellites.some(sat => selectedSatellites.has(sat.id)) && !allFilteredSelected;
                                 
-                                if (allFilteredSelected) return 'Deselect All';
-                                if (hasPartialSelection) return 'Invert Selection';
-                                return 'Select All';
+                                if (allFilteredSelected) return '取消全选';
+                                if (hasPartialSelection) return '反选';
+                                return '全选';
                             })()}
                         </button>
                         <span className="text-[10px] text-slate-500">
@@ -295,7 +295,7 @@ const SettingsPanel = ({
                             </div>
                         ))}
                         {filteredSatellites.length === 0 && (
-                            <div className="text-[10px] text-slate-600 italic p-2">No matching satellites</div>
+                            <div className="text-[10px] text-slate-600 italic p-2">没有匹配的卫星</div>
                         )}
                     </div>
                         <div className="text-[10px] text-slate-500">
@@ -333,15 +333,15 @@ const ViewToggle = ({ mode, onChange }: { mode: '3d' | '2d' | 'split', onChange:
                 2D
             </button>
             <button 
-                onClick={() => onChange('split')}
-                className={clsx(
-                    "px-3 py-1.5 text-[10px] font-bold transition-colors flex items-center gap-1.5",
-                    mode === 'split' ? "bg-cyan-900 text-cyan-400" : "text-slate-400 hover:bg-slate-800"
-                )}
-            >
-                <Activity size={12} />
-                SPLIT
-            </button>
+                    onClick={() => onChange('split')}
+                    className={clsx(
+                        "px-3 py-1.5 text-[10px] font-bold transition-colors flex items-center gap-1.5",
+                        mode === 'split' ? "bg-cyan-900 text-cyan-400" : "text-slate-400 hover:bg-slate-800"
+                    )}
+                >
+                    <Activity size={12} />
+                    分屏
+                </button>
         </div>
     );
 };
@@ -425,14 +425,14 @@ const PlaneMonitor = ({
                 <div>
                     <h2 className="font-mono font-bold text-base text-slate-100 tracking-widest uppercase">{group.name}</h2>
                     <div className="flex items-center gap-2 text-[10px] text-cyan-500/70 font-mono">
-                        <span>STATUS: ORBITAL</span>
+                        <span>状态: 轨道运行中</span>
                         <span>•</span>
-                        <span>TRACKING: {satellites.length}</span>
+                        <span>跟踪中: {satellites.length}</span>
                     </div>
                 </div>
             </div>
             <div className="text-right hidden sm:block">
-                <div className="text-xs font-mono text-slate-400">AVG ALTITUDE</div>
+                <div className="text-xs font-mono text-slate-400">平均高度</div>
                 <div className="text-lg font-mono font-bold text-white leading-none">~{satellites[0]?.alt.toFixed(0) || 0}<span className="text-xs text-slate-500 ml-1">KM</span></div>
             </div>
         </div>
@@ -443,7 +443,7 @@ const PlaneMonitor = ({
                 <div className="relative flex flex-col h-full">
                     <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-black/70 border border-slate-800 px-3 py-1 rounded-sm backdrop-blur-md pointer-events-none">
                         <Globe size={14} className="text-cyan-400" />
-                        <span className="text-[10px] font-bold text-slate-200 tracking-widest font-mono">3D VISUALIZER</span>
+                        <span className="text-[10px] font-bold text-slate-200 tracking-widest font-mono">3D 可视化</span>
                     </div>
                     <div className="flex-1 bg-[#020617]">
                         <Earth3D 
@@ -459,7 +459,7 @@ const PlaneMonitor = ({
                 <div className="relative flex flex-col h-full">
                     <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-black/70 border border-slate-800 px-3 py-1 rounded-sm backdrop-blur-md pointer-events-none">
                         <MapIcon size={14} className="text-cyan-400" />
-                        <span className="text-[10px] font-bold text-slate-200 tracking-widest font-mono">GROUND TRACK</span>
+                        <span className="text-[10px] font-bold text-slate-200 tracking-widest font-mono">地面轨迹</span>
                     </div>
                     <div className="flex-1 bg-[#020617]">
                         <Map2D 
@@ -586,7 +586,7 @@ export default function App() {
                     ORBITAL<span className="text-cyan-500">OPS</span>
                 </h1>
                 <div className="text-[10px] text-cyan-600 font-mono tracking-[0.2em] uppercase mt-1">
-                    Global Satellite Tracking
+                    全球卫星跟踪系统
                 </div>
             </div>
         </div>
@@ -616,7 +616,7 @@ export default function App() {
              </button>
         </div>
         
-        {/* Group Toggles */}
+        {/* 组切换 */}
         <div className="flex items-center gap-2">
              {groups.map(g => (
                  <button 
@@ -645,7 +645,7 @@ export default function App() {
         {loading ? (
             <div className="flex-1 flex items-center justify-center flex-col gap-4">
                 <RefreshCw className="animate-spin text-cyan-400" size={32} />
-                <div className="text-xs font-mono text-cyan-500/80">INITIALIZING ORBITAL DYNAMICS...</div>
+                <div className="text-xs font-mono text-cyan-500/80">初始化轨道动力学系统...</div>
             </div>
         ) : (
             <div className="flex-1 flex flex-col">
@@ -668,7 +668,7 @@ export default function App() {
                  })}
                  {activeGroups.length === 0 && (
                      <div className="flex-1 flex items-center justify-center text-slate-600 font-mono text-sm">
-                         NO ACTIVE FEEDS SELECTED
+                         未选择活动数据源
                      </div>
                  )}
             </div>

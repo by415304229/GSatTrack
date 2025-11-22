@@ -1,29 +1,77 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Upload, FileText, X, AlertCircle } from 'lucide-react';
 import { validateTLEContent } from '../utils/tleValidator';
 import { parseTLEContent, ParsedSatellite } from '../utils/tleParser';
+
 import {
   createError,
   validateFile,
   getErrorClassName,
-  formatErrorMessage,
   TLEImportError,
   TLEImportErrorType,
-  getErrorSeverity,
   handleError,
   handleAsyncError
 } from '../utils/errorHandler';
+import { fetchSatelliteGroups, updateSatelliteGroup, createSatelliteGroup } from '../services/satelliteService';
+import type { SatelliteTLE } from '../services/satelliteService';
+import { SatelliteGroup } from '../types';
 
-interface TLEFileUploadProps {
-  onFileUpload: (file: File, content: string, parsedSatellites: ParsedSatellite[]) => void;
+interface tlefileuploadprops {
+  onFileUpload: (file: File, content: string, parsedsatellites: ParsedSatellite[]) => void;
+  onSatelliteGroupUpdated?: (groupid: string, satellitecount: number) => void;
   disabled?: boolean;
 }
 
-const TLEFileUpload: React.FC<TLEFileUploadProps> = ({ onFileUpload, disabled = false }) => {
+const TLEFileUpload: React.FC<tlefileuploadprops> = ({ 
+  onFileUpload, 
+  onSatelliteGroupUpdated,
+  disabled = false 
+}) => {
   const [uploadError, setUploadError] = useState<TLEImportError | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [satelliteGroups, setSatelliteGroups] = useState<SatelliteGroup[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<string>('new');
+  const [newGroupName, setNewGroupName] = useState<string>('');
+  const [updateMode, setUpdateMode] = useState<'merge' | 'replace'>('merge');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
+  
+  // 加载现有的卫星组
+  useEffect(() => {
+    const loadGroups = async () => {
+      try {
+        const groups = await fetchSatelliteGroups();
+        setSatelliteGroups(groups);
+      } catch {
+        // 错误已被上层组件处理
+      }
+    };
+    
+    loadGroups();
+  }, []);
+  
+  // 根据文件名自动识别目标卫星组
+  const autoDetectSatelliteGroup = (filename: string): void => {
+    const normalizedName = filename.toLowerCase().replace(/\.(tle|txt)$/, '').replace(/[_\-]/g, ' ');
+    
+    // 尝试根据文件名匹配现有的卫星组
+    const matchedGroup = satelliteGroups.find(group => 
+      group.name.toLowerCase().includes(normalizedName) || 
+      normalizedName.includes(group.name.toLowerCase())
+    );
+    
+    if (matchedGroup) {
+      setSelectedGroupId(matchedGroup.id);
+      setNewGroupName('');
+    }
+
+ else {
+      // 如果没有匹配，默认创建新组，并使用文件名作为建议名称
+      setSelectedGroupId('new');
+      setNewGroupName(normalizedName);
+    }
+  };
 
   // 处理文件选择
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -65,9 +113,11 @@ const TLEFileUpload: React.FC<TLEFileUploadProps> = ({ onFileUpload, disabled = 
 
   // 处理文件上传流程
   const processFile = async (file: File) => {
-    // 重置错误状态
+    // 重置错误和成功状态
     setUploadError(null);
-    
+    setUploadSuccess(null);
+    // 根据文件名自动识别卫星组
+    autoDetectSatelliteGroup(file.name);
     try {
       // 1. 验证文件
       const fileError = validateFile(file);
@@ -107,7 +157,65 @@ const TLEFileUpload: React.FC<TLEFileUploadProps> = ({ onFileUpload, disabled = 
         return;
       }
       
-      // 5. 调用上传回调
+      // 5. 转换为SatelliteTLE格式并处理卫星组
+      try {
+        const parsedTles = parseResult.result;
+        const satelliteTles: SatelliteTLE[] = parsedTles.map(tle => ({
+          name: tle.name,
+          satId: tle.noradId || tle.satId, // 使用satId字段，优先使用noradId作为值
+          line1: tle.line1,
+          line2: tle.line2,
+          updatedAt: new Date()
+        }));
+        
+        if (selectedGroupId === 'new') {
+          // 创建新组
+          if (!newGroupName.trim()) {
+            throw new Error('请输入新卫星组名称');
+          }
+          
+          const newGroup = await createSatelliteGroup(newGroupName.trim(), satelliteTles);
+          setUploadSuccess(`成功创建新卫星组 "${newGroup.name}"，包含 ${satelliteTles.length} 颗卫星`);
+          
+          // 重新加载卫星组列表
+          const updatedGroups = await fetchSatelliteGroups();
+          setSatelliteGroups(updatedGroups);
+          
+          // 通知父组件卫星组已更新
+          if (onSatelliteGroupUpdated) {
+            onSatelliteGroupUpdated(newGroup.id, satelliteTles.length);
+          }
+        }
+
+ else {
+          // 更新现有组
+          await updateSatelliteGroup({
+            groupId: selectedGroupId,
+            tles: satelliteTles,
+            merge: updateMode === 'merge'
+          });
+          const updatedGroups = await fetchSatelliteGroups();
+          setSatelliteGroups(updatedGroups);
+          const targetGroup = updatedGroups.find(g => g.id === selectedGroupId);
+          const operation = updateMode === 'merge' ? '合并' : '替换';
+          setUploadSuccess(`成功${operation}卫星组 "${targetGroup?.name || '未知'}"，更新了 ${satelliteTles.length} 颗卫星`);
+          
+          // 通知父组件卫星组已更新
+          if (onSatelliteGroupUpdated) {
+            onSatelliteGroupUpdated(selectedGroupId, satelliteTles.length);
+          }
+        }
+      } catch (groupError) {
+        const error = createError(
+          TLEImportErrorType.UNKNOWN_ERROR,
+          undefined,
+          `处理卫星组时出错: ${groupError instanceof Error ? groupError.message : '未知错误'}`
+        );
+        setUploadError(error);
+        return;
+      }
+      
+      // 6. 调用上传回调
       onFileUpload(file, content, parseResult.result);
       
     } catch (error) {
@@ -120,7 +228,7 @@ const TLEFileUpload: React.FC<TLEFileUploadProps> = ({ onFileUpload, disabled = 
     }
   };
 
-  const handleClick = () => {
+  const handleclick = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
@@ -160,6 +268,50 @@ const TLEFileUpload: React.FC<TLEFileUploadProps> = ({ onFileUpload, disabled = 
       />
       
       <div className="flex flex-col gap-6">
+        {/* 卫星组选择区域 */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">目标卫星组</h3>
+          <div className="space-y-3">
+            <select
+              value={selectedGroupId}
+              onChange={(e) => setSelectedGroupId(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              disabled={disabled}
+            >
+              <option value="new">创建新卫星组</option>
+              {satelliteGroups.map(group => (
+                <option key={group.id} value={group.id}>{group.name}</option>
+              ))}
+            </select>
+            
+            {selectedGroupId === 'new' && (
+              <input
+                type="text"
+                placeholder="输入新卫星组名称"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                disabled={disabled}
+                className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              />
+            )}
+            
+            {selectedGroupId !== 'new' && (
+              <div className="space-y-2">
+                <p className="text-sm text-slate-400">更新模式</p>
+                <select
+                  value={updateMode}
+                  onChange={(e) => setUpdateMode(e.target.value as 'merge' | 'replace')}
+                  className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  disabled={disabled}
+                >
+                  <option value="merge">合并（保留现有数据，添加或更新卫星）</option>
+                  <option value="replace">替换（完全替换组内所有卫星）</option>
+                </select>
+              </div>
+            )}
+          </div>
+        </div>
+        
         {/* Drag and drop area */}
         <div
           ref={dropZoneRef}
@@ -170,7 +322,7 @@ const TLEFileUpload: React.FC<TLEFileUploadProps> = ({ onFileUpload, disabled = 
               : 'border-slate-700 hover:border-cyan-400'}
             ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
           `}
-          onClick={disabled ? undefined : handleClick}
+          onClick={disabled ? undefined : handleclick}
           onDragOver={disabled ? undefined : handleDragOver}
           onDragLeave={disabled ? undefined : handleDragLeave}
           onDrop={disabled ? undefined : handleDrop}
@@ -189,7 +341,7 @@ const TLEFileUpload: React.FC<TLEFileUploadProps> = ({ onFileUpload, disabled = 
         {/* Traditional file upload button */}
         <div className="flex justify-center">
           <button 
-            onClick={disabled ? undefined : handleClick}
+            onClick={disabled ? undefined : handleclick}
             disabled={disabled}
             className={`
               flex items-center gap-2 px-6 py-2.5 rounded-md font-medium transition-colors
@@ -202,6 +354,27 @@ const TLEFileUpload: React.FC<TLEFileUploadProps> = ({ onFileUpload, disabled = 
             选择文件上传
           </button>
         </div>
+
+        {/* Success message */}
+        {uploadSuccess && (
+          <div className="bg-green-900/30 border border-green-700/50 rounded-lg p-4 flex items-start gap-3">
+            <svg className="text-green-500 mt-0.5 flex-shrink-0" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            <div className="flex-1">
+              <div className="flex justify-between items-start">
+                <h4 className="font-medium text-green-400">成功</h4>
+                <button 
+                  onClick={() => setUploadSuccess(null)}
+                  className="text-slate-400 hover:text-white transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <p className="text-sm text-green-300 mt-1">{uploadSuccess}</p>
+            </div>
+          </div>
+        )}
 
         {/* Error message */}
         {uploadError && (

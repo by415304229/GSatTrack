@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { FileText } from 'lucide-react';
 import { fetchSatelliteGroups } from './services/satelliteService';
 import { getSatellitePosition, calculateOrbitPath } from './utils/satMath';
@@ -8,7 +8,7 @@ import Earth3D from './components/Earth3D';
 import Map2D from './components/Map2D';
 import SatelliteDetail from './components/SatelliteDetail';
 import TLEFileUpload from './components/TLEFileUpload';
-import { Activity, Globe, Map as MapIcon, RefreshCw, Satellite, Zap, Radio, Play, Pause, FastForward, Plus, MapPin, Clock, Settings, X, Upload, FileDown } from 'lucide-react';
+import { Activity, Globe, Map as MapIcon, RefreshCw, Satellite, Play, Pause, Plus, MapPin, Settings, X, FileDown } from 'lucide-react';
 import clsx from 'clsx';
 
 const ORBIT_COLORS = ['#06b6d4', '#3b82f6'];
@@ -75,7 +75,6 @@ const StationPanel = ({
     const [newName, setNewName] = useState('');
     const [newLat, setNewLat] = useState('');
     const [newLon, setNewLon] = useState('');
-
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (newName && newLat && newLon) {
@@ -197,7 +196,9 @@ const SettingsPanel = ({
             filteredSatellites.forEach(sat => {
                 onSatelliteToggle(sat.id);
             });
-        } else {
+        }
+
+ else {
             // 全选：选中所有过滤结果中的卫星
             filteredSatellites.forEach(sat => {
                 if (!selectedSatellites.has(sat.id)) {
@@ -511,27 +512,22 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [activeGroups, setActiveGroups] = useState<string[]>([]);
   const [showTLEImport, setShowTLEImport] = useState(false);
-  
   // Time Simulation State
   const [simTime, setSimTime] = useState(new Date());
   const [timeRate, setTimeRate] = useState(1);
   const [isPaused, setIsPaused] = useState(false);
   const lastRafTime = useRef(Date.now());
-
   // View Mode State
   const [viewMode, setViewMode] = useState<'3d' | '2d' | 'split'>('3d');
-
   // Settings State
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [orbitWindowMinutes, setOrbitWindowMinutes] = useState(24); // 1/4 period ~24 minutes
   const [selectedSatellites, setSelectedSatellites] = useState<Set<string>>(new Set());
-
   // Ground Stations State
   const [stations, setStations] = useState<GroundStation[]>([
       { id: 'gs-1', name: 'Shanghai', lat: 31.2304, lon: 121.4737, color: '#10b981' },
       { id: 'gs-2', name: 'London', lat: 51.5074, lon: -0.1278, color: '#f59e0b' }
   ]);
-
   useEffect(() => {
     const load = async () => {
       const data = await fetchSatelliteGroups();
@@ -541,7 +537,6 @@ export default function App() {
     };
     load();
   }, []);
-
   // Simulation Loop
   useEffect(() => {
       let handle: number;
@@ -549,7 +544,6 @@ export default function App() {
           const now = Date.now();
           const dt = now - lastRafTime.current;
           lastRafTime.current = now;
-
           if (!isPaused) {
               setSimTime(prev => new Date(prev.getTime() + dt * timeRate));
           }
@@ -558,7 +552,6 @@ export default function App() {
       handle = requestAnimationFrame(loop);
       return () => cancelAnimationFrame(handle);
   }, [isPaused, timeRate]);
-
   const handleAddStation = (name: string, lat: number, lon: number) => {
       setStations(prev => [...prev, { 
           id: `gs-${Date.now()}`, 
@@ -582,11 +575,14 @@ export default function App() {
 
     // 创建新的轨道平面组
     const groupName = file.name.replace('.txt', '').replace('.tle', '');
-    const newGroupId = `imported-${Date.now()}`;
+    const newgroupid = `imported-${Date.now()}`;
+
     const newGroup: OrbitalPlaneGroup = {
-      id: newGroupId,
+      id: newgroupid,
       name: groupName || `导入卫星组`,
-      description: `导入的卫星组 - ${groupName || '未命名组'}`,
+      description: `导入的卫星组 - ${groupName || '未命名组'}
+
+`,
       tles: parsedSatellites.map(sat => ({
         name: sat.name,
         satId: sat.satId,
@@ -598,9 +594,21 @@ export default function App() {
     // 更新组列表
     setGroups(prev => [...prev, newGroup]);
     // 激活新导入的组
-    setActiveGroups([newGroupId]);
+    setActiveGroups([newgroupid]);
     // 关闭导入界面
     setShowTLEImport(false);
+  };
+  
+  const handleSatelliteGroupUpdated = (groupId: string, _satelliteCount: number) => {
+    // 如果当前正在查看的卫星组就是更新的组，刷新数据
+    if (activeGroups.includes(groupId)) {
+      // 重新获取卫星组数据
+      const loadGroups = async () => {
+        const data = await fetchSatelliteGroups();
+        setGroups(data);
+      };
+      loadGroups();
+    }
   };
 
   return (
@@ -624,13 +632,6 @@ export default function App() {
 
         {/* Center Controls */}
         <div className="flex items-center gap-4">
-             <button 
-                onClick={() => setShowTLEImport(true)}
-                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 rounded border border-slate-700 text-[10px] font-bold transition-colors flex items-center gap-1.5"
-             >
-                <FileText size={12} />
-                导入TLE
-             </button>
              <TimeControls 
                 time={simTime} 
                 rate={timeRate} 
@@ -651,6 +652,13 @@ export default function App() {
              >
                 <Settings size={12} />
                 SETTINGS
+             </button>
+             <button 
+                onClick={() => setShowTLEImport(true)}
+                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 rounded border border-slate-700 text-[10px] font-bold transition-colors flex items-center gap-1.5"
+             >
+                <FileText size={12} />
+                导入TLE
              </button>
         </div>
         
@@ -756,6 +764,7 @@ export default function App() {
             <div className="flex-1 p-4 overflow-y-auto">
               <TLEFileUpload 
                 onFileUpload={handleTLEImport}
+                onSatelliteGroupUpdated={handleSatelliteGroupUpdated}
                 // TLEFileUpload组件没有onClose属性，通过其他方式控制显示/隐藏
               />
             </div>

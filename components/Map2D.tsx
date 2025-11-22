@@ -2,13 +2,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { SatellitePos, GroundStation } from '../types';
 
-interface Map2DProps {
+interface map2dprops {
   satellites: SatellitePos[];
   groundStations: GroundStation[];
   onSatClick?: (sat: SatellitePos) => void;
 }
 
-interface HoverData {
+interface hoverdata {
     id: string;
     name: string;
     type: 'SAT' | 'STATION';
@@ -17,7 +17,7 @@ interface HoverData {
     y: number;
 }
 
-const Tooltip = ({ data }: { data: HoverData }) => {
+const Tooltip = ({ data }: { data: hoverdata }) => {
     return (
         <div 
             className="fixed z-50 pointer-events-none p-3 bg-slate-950/90 border border-cyan-500/50 rounded backdrop-blur-md shadow-[0_0_20px_rgba(6,182,212,0.2)] flex flex-col gap-2 min-w-[180px]"
@@ -55,12 +55,12 @@ const Tooltip = ({ data }: { data: HoverData }) => {
     )
 }
 
-const Map2D: React.FC<Map2DProps> = ({ satellites, groundStations, onSatClick }) => {
+const Map2D: React.FC<map2dprops> = ({ satellites, groundStations, onSatClick }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
-  const [hoverData, setHoverData] = useState<HoverData | null>(null);
-
+  const [hoverData, setHoverData] = useState<hoverdata | null>(null);
+  
   // Load Earth Map Image
   useEffect(() => {
     const img = new Image();
@@ -205,7 +205,7 @@ const Map2D: React.FC<Map2DProps> = ({ satellites, groundStations, onSatClick })
   }, [satellites, groundStations, hoverData]);
 
   // Interaction
-  const findObjectAtPos = (clientX: number, clientY: number): HoverData | null => {
+  const findObjectAtPos = (clientX: number, clientY: number): hoverdata | null => {
       const canvas = canvasRef.current;
       const container = containerRef.current;
       if (!canvas || !container) return null;
@@ -235,13 +235,13 @@ const Map2D: React.FC<Map2DProps> = ({ satellites, groundStations, onSatClick })
       return null;
   }
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handlemousemove = (e: React.MouseEvent<HTMLCanvasElement>) => {
       const found = findObjectAtPos(e.clientX, e.clientY);
       setHoverData(found);
       if (canvasRef.current) canvasRef.current.style.cursor = found ? 'pointer' : 'default';
   };
   
-  const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleclick = (e: React.MouseEvent<HTMLCanvasElement>) => {
       const found = findObjectAtPos(e.clientX, e.clientY);
       if (found && found.type === 'SAT' && onSatClick) {
           onSatClick(found.data);
@@ -254,9 +254,9 @@ const Map2D: React.FC<Map2DProps> = ({ satellites, groundStations, onSatClick })
           ref={canvasRef} 
           className="block w-full h-full rounded bg-[#0f172a] border border-slate-800 shadow-inner cursor-crosshair absolute inset-0"
           style={{ width: '100%', height: '100%' }}
-          onMouseMove={handleMouseMove}
+          onMouseMove={handlemousemove}
           onMouseLeave={() => setHoverData(null)}
-          onClick={handleClick}
+          onClick={handleclick}
         />
         {hoverData && <Tooltip data={hoverData} />}
     </div>

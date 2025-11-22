@@ -2,14 +2,14 @@ import React from 'react';
 import { SatellitePos } from '../types';
 import { X, Radio, ShieldCheck, Activity, Clock, Globe } from 'lucide-react';
 
-interface SatelliteDetailProps {
+interface satellitedetailprops {
   sat: SatellitePos;
   onClose: () => void;
 }
 
-const SatelliteDetail: React.FC<SatelliteDetailProps> = ({ sat, onClose }) => {
+const SatelliteDetail: React.FC<satellitedetailprops> = ({ sat, onClose }) => {
   // Parse some additional orbital info from TLE line 2 if available
-  // Line 2: 2 NNNNN IIII.IIII RRR.RRRR EEEEEEE AAAAA.AAAA MMMM.MMMM NN.NNNNNNNNRRRRR
+  // Line 2: 2 nnnnn iiii.iiii rrr.rrrr eeeeeee aaaaa.aaaa mmmm.mmmm nn.nnnnnnnnrrrrr
   let inclination = 'N/A';
   let period = 'N/A';
   
@@ -27,8 +27,10 @@ const SatelliteDetail: React.FC<SatelliteDetailProps> = ({ sat, onClose }) => {
                 const pMinutes = 1440 / meanMotion;
                 period = pMinutes.toFixed(1) + ' MIN';
             }
-          } catch (e) {
-              console.warn("Error parsing TLE details", e);
+          }
+
+ catch {
+              // 忽略解析错误
           }
       }
   }

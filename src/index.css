@@ -2,6 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 全局样式 */
+body {
+  margin: 0;
+  background-color: #0f172a;
+  color: white;
+  overflow: hidden;
+}
+
+canvas {
+  outline: none;
+}
+
+/* Custom scrollbar for lists */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
 /* 为中文文本设置稍微大一点的字体 */
 @layer base {
   /* 为特定大小的文本增加1-2px字号 */

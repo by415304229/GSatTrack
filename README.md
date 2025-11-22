@@ -37,6 +37,20 @@ GSatTrack是一个现代化的全球卫星跟踪系统，提供实时卫星位�
 - npm 9.0 或更高版本（或 yarn 1.22.0+）
 - 现代浏览器（支持WebGL）
 
+#### 代码质量检查
+
+项目使用 ESLint 进行 JavaScript/TypeScript 代码检查，使用 Stylelint 进行 CSS 代码检查。
+
+```bash
+# 运行所有代码检查
+npm run lint
+
+# 自动修复代码问题
+npm run lint:fix
+```
+
+详细的 CSS 代码质量检查使用说明，请参考 [README_CSS_LINTING.md](README_CSS_LINTING.md)
+
 #### 安装依赖
 
 1. 克隆项目到本地：
@@ -85,6 +99,14 @@ npm run dev
 5. **轨道窗口设置**：
    - 在设置面板中调整轨道预测时间窗口（1-120分钟）
    - 系统会实时更新轨道轨迹
+
+6. **TLE文件导入**：
+   - 点击"SETTING"按钮旁边的"TLE导入"按钮打开上传面板
+   - 拖拽TLE文件到上传区域或点击浏览文件选择本地TLE文件
+   - 选择目标卫星组（可选择现有组或创建新组）
+   - 选择更新模式："覆盖"将替换现有数据，"追加"将保留已有卫星并添加新卫星
+   - 上传后系统会自动验证TLE数据格式并显示导入结果
+   - 支持批量导入多颗卫星数据，每颗卫星需要3行数据（名称行、第一行轨道数据、第二行轨道数据）
 
 #### 构建生产版本
 
@@ -226,6 +248,14 @@ npm run dev
 5. **Orbit Window Settings**:
    - Adjust the orbit prediction time window (1-120 minutes) in the settings panel
    - The system will update orbit trajectories in real-time
+
+6. **TLE File Import**:
+   - Click the "TLE Import" button next to the "SETTING" button to open the upload panel
+   - Drag and drop TLE files to the upload area or click "Browse Files" to select local TLE files
+   - Select the target satellite group (can choose an existing group or create a new group)
+   - Select update mode: "Override" will replace existing data, "Append" will keep existing satellites and add new ones
+   - After upload, the system will automatically verify the TLE data format and display the import results
+   - Supports batch importing multiple satellites, each satellite requires 3 lines of data (name line, first line of orbit data, second line of orbit data)
 
 #### Building for Production
 

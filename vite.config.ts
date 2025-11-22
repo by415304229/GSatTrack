@@ -1,6 +1,7 @@
 import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import stylelintPlugin from 'vite-plugin-stylelint';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
@@ -14,7 +15,18 @@ export default defineConfig(({ mode }) => {
           allow: ['.', '../']
         }
       },
-      plugins: [react()],
+      plugins: [
+        react(),
+        stylelintPlugin({
+          // 配置Stylelint插件
+          include: ['**/*.{css,scss,sass,less,styl}'],
+          exclude: ['node_modules/', 'dist/', 'build/', '**/*.html'],
+          // 在开发模式下启用
+          lintOnStart: true,
+          // 保存时自动修复
+          fix: true
+        })
+      ],
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
         'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)

@@ -4,6 +4,7 @@ export interface TLEData {
   line1: string;
   line2: string;
   satId: string;
+  updatedAt?: Date;
 }
 
 export interface SatellitePos {
@@ -26,6 +27,15 @@ export interface OrbitalPlaneGroup {
   name: string;
   description: string;
   tles: TLEData[];
+  source?: string;
+}
+
+export interface SatelliteGroup {
+  id: string;
+  name: string;
+  description: string;
+  tles: TLEData[];
+  source?: string;
 }
 
 export interface GroundStation {
@@ -40,4 +50,12 @@ export interface TrackerSettings {
   showOrbits: boolean;
   showLabels: boolean;
   showTerminator: boolean;
+}
+
+export interface ParsedSatellite {
+  name: string;
+  line1: string;
+  line2: string;
+  noradId?: string;
+  satId?: string;
 }

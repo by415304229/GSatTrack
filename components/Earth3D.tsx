@@ -27,8 +27,8 @@ extend({
 
 // 为primitive组件创建类型声明
 declare global {
-  namespace JSX {
-    interface IntrinsicElements {
+  namespace jsx {
+    interface intrinsicelements {
       primitive: {
         object?: any;
         attach?: string;
@@ -47,18 +47,14 @@ const Group = 'group' as unknown as React.FC<any>;
 const InstancedMesh = 'instancedMesh' as unknown as React.FC<any>;
 const MeshBasicMaterial = 'meshBasicMaterial' as unknown as React.FC<any>;
 const CylinderGeometry = 'cylinderGeometry' as unknown as React.FC<any>;
-const Line = 'line' as unknown as React.FC<any>;
-const LineBasicMaterial = 'lineBasicMaterial' as unknown as React.FC<any>;
 const AmbientLight = 'ambientLight' as unknown as React.FC<any>;
 const DirectionalLight = 'directionalLight' as unknown as React.FC<any>;
-const LineSegments = 'lineSegments' as unknown as React.FC<any>;
 const Color = 'color' as unknown as React.FC<any>;
-const primitive = 'primitive' as unknown as React.FC<any>;
 
 // Earth Radius in scene units
 const R = 1; 
 
-interface EarthProps {
+interface earthprops {
   satellites: SatellitePos[];
   groundStations: GroundStation[];
   onSatClick?: (sat: SatellitePos) => void;
@@ -80,7 +76,7 @@ const Atmosphere = () => {
     )
 }
 
-const EarthMesh = () => {
+const Earthmesh = () => {
   const { gl } = useThree();
   
   // Standard Three.js texture loader with basic caching - using local files
@@ -120,7 +116,7 @@ const EarthMesh = () => {
   );
 };
 
-interface HoverData {
+interface hoverdata {
     id: string;
     name: string;
     type: 'SAT' | 'STATION';
@@ -135,16 +131,14 @@ const SatelliteInstances = ({
     onClick
 }: { 
     satellites: SatellitePos[], 
-    onHover: (data: HoverData | null) => void,
+    onHover: (data: hoverdata | null) => void,
     onClick?: (sat: SatellitePos) => void
 }) => {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const tempObject = new THREE.Object3D();
   const tempColor = new THREE.Color();
-
   useFrame(() => {
     if (!meshRef.current) return;
-    
     satellites.forEach((sat, i) => {
       tempObject.position.set(sat.x, sat.y, sat.z);
       const scale = 0.012;
@@ -156,8 +150,7 @@ const SatelliteInstances = ({
     meshRef.current.instanceMatrix.needsUpdate = true;
     if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
   });
-
-  const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
+  const handlepointermove = (e: ThreeEvent<PointerEvent>) => {
       e.stopPropagation();
       const instanceId = e.instanceId;
       if (instanceId !== undefined && satellites[instanceId]) {
@@ -173,12 +166,12 @@ const SatelliteInstances = ({
       }
   };
 
-  const handlePointerOut = () => {
+  const handlepointerout = () => {
       onHover(null);
       document.body.style.cursor = 'default';
   };
   
-  const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
+  const handlepointerdown = (e: ThreeEvent<PointerEvent>) => {
       e.stopPropagation();
       const instanceId = e.instanceId;
       if (instanceId !== undefined && satellites[instanceId] && onClick) {
@@ -190,9 +183,9 @@ const SatelliteInstances = ({
     <InstancedMesh 
         ref={meshRef} 
         args={[undefined, undefined, satellites.length]}
-        onPointerMove={handlePointerMove}
-        onPointerOut={handlePointerOut}
-        onPointerDown={handlePointerDown}
+        onPointerMove={handlepointermove}
+        onPointerOut={handlepointerout}
+        onPointerDown={handlepointerdown}
     >
       <SphereGeometry args={[1, 8, 8]} />
       <MeshBasicMaterial toneMapped={false} />
@@ -200,7 +193,7 @@ const SatelliteInstances = ({
   );
 };
 
-const GroundStationMarkers = ({ stations, onHover }: { stations: GroundStation[], onHover: (data: HoverData | null) => void }) => {
+const GroundStationMarkers = ({ stations, onHover }: { stations: GroundStation[], onHover: (data: hoverdata | null) => void }) => {
     return (
         <Group>
             {stations.map(station => {
@@ -275,8 +268,8 @@ const OrbitLine: React.FC<{ path: {x:number, y:number, z:number}[], color: strin
   return null;
 };
 
-const Earth3D: React.FC<EarthProps> = ({ satellites, groundStations, onSatClick }) => {
-  const [hoverData, setHoverData] = useState<HoverData | null>(null);
+const Earth3D: React.FC<earthprops> = ({ satellites, groundStations, onSatClick }) => {
+  const [hoverData, setHoverData] = useState<hoverdata | null>(null);
 
   return (
     <div className="w-full h-full relative">
@@ -298,7 +291,7 @@ const Earth3D: React.FC<EarthProps> = ({ satellites, groundStations, onSatClick 
           
           <Group>
             <Suspense fallback={null}>
-                <EarthMesh />
+                <Earthmesh />
             </Suspense>
 
             <SatelliteInstances 
@@ -309,9 +302,9 @@ const Earth3D: React.FC<EarthProps> = ({ satellites, groundStations, onSatClick 
             
             <GroundStationMarkers stations={groundStations} onHover={setHoverData} />
 
-            {satellites.map(sat => (
+            {satellites.map((sat, index) => (
                sat.orbitPath && sat.orbitPath.length > 0 && (
-                   <OrbitLine key={`orbit-${sat.id}`} path={sat.orbitPath} color={sat.color || '#ffffff'} />
+                   <OrbitLine key={`orbit-${sat.id || index}`} path={sat.orbitPath} color={sat.color || '#ffffff'} />
                )
             ))}
           </Group>

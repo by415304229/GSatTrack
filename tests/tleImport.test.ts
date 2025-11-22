@@ -19,6 +19,9 @@ import {
   TLEImportErrorType
 } from '../utils/errorHandler';
 
+// 导入SatelliteTLE接口用于测试数据转换
+import { SatelliteTLE } from '../services/satelliteService';
+
 // Mock File object for testing
 class MockFile extends File {
   constructor(content: string, filename: string, options?: { type?: string; lastModified?: number }) {
@@ -53,6 +56,107 @@ describe('TLE Validator Tests', () => {
     expect(result.satelliteCount).toBe(3);
     expect(result.error).toBeUndefined();
   });
+
+// 新增测试套件：测试卫星数据处理和转换逻辑
+describe('Satellite Data Conversion Tests', () => {
+  // 模拟解析后的卫星数据（使用noradId字段）
+  const mockParsedSatellites = [
+    {
+      name: 'ISS (ZARYA)',
+      noradId: '25544',
+      line1: '1 25544U 98067A   23123.55430556  .00016717  00000-0  10270-3 0  9016',
+      line2: '2 25544  51.6432 342.5792 0006733  32.6678  45.4686 15.49549334322062'
+    },
+    {
+      name: 'Starlink-1000',
+      noradId: '5eed78',
+      line1: '1 5eed78 65432A   23123.55430556  .00016717  00000-0  10270-3 0  9017',
+      line2: '2 5eed78  51.6432 342.5792 0006733  32.6678  45.4686 15.49549334322062'
+    }
+  ];
+
+  // 模拟解析后的卫星数据（使用satId字段）
+  const mockParsedSatellitesWithSatId = [
+    {
+      name: 'ISS (ZARYA)',
+      satId: '25544',
+      line1: '1 25544U 98067A   23123.55430556  .00016717  00000-0  10270-3 0  9016',
+      line2: '2 25544  51.6432 342.5792 0006733  32.6678  45.4686 15.49549334322062'
+    },
+    {
+      name: 'Starlink-1000',
+      satId: '5eed78',
+      line1: '1 5eed78 65432A   23123.55430556  .00016717  00000-0  10270-3 0  9017',
+      line2: '2 5eed78  51.6432 342.5792 0006733  32.6678  45.4686 15.49549334322062'
+    }
+  ];
+
+  // 模拟TLEFileUpload组件中的转换逻辑
+  const convertToSatelliteTLE = (parsedTles: any[]): SatelliteTLE[] => {
+    return parsedTles.map(tle => ({
+      name: tle.name,
+      satId: tle.noradId || tle.satId, // 修复后的逻辑：使用satId字段，优先使用noradId作为值
+      line1: tle.line1,
+      line2: tle.line2,
+      updatedAt: new Date()
+    }));
+  };
+
+  test('应正确将带noradId的卫星数据转换为SatelliteTLE格式', () => {
+    const satelliteTles = convertToSatelliteTLE(mockParsedSatellites);
+    
+    // 验证转换后的数据长度与原数据一致
+    expect(satelliteTles).toHaveLength(2);
+    
+    // 验证每个卫星的字段都正确转换
+    expect(satelliteTles[0].name).toBe('ISS (ZARYA)');
+    expect(satelliteTles[0].satId).toBe('25544'); // 验证noradId正确转换为satId
+    expect(satelliteTles[1].name).toBe('Starlink-1000');
+    expect(satelliteTles[1].satId).toBe('5eed78'); // 验证noradId正确转换为satId
+    
+    // 验证所有卫星数据都被正确处理
+    satelliteTles.forEach((tle, index) => {
+      expect(tle.line1).toBe(mockParsedSatellites[index].line1);
+      expect(tle.line2).toBe(mockParsedSatellites[index].line2);
+      expect(tle.updatedAt).toBeInstanceOf(Date);
+    });
+  });
+
+  test('应正确将带satId的卫星数据转换为SatelliteTLE格式', () => {
+    const satelliteTles = convertToSatelliteTLE(mockParsedSatellitesWithSatId);
+    
+    // 验证转换后的数据长度与原数据一致
+    expect(satelliteTles).toHaveLength(2);
+    
+    // 验证每个卫星的字段都正确转换
+    expect(satelliteTles[0].name).toBe('ISS (ZARYA)');
+    expect(satelliteTles[0].satId).toBe('25544');
+    expect(satelliteTles[1].name).toBe('Starlink-1000');
+    expect(satelliteTles[1].satId).toBe('5eed78');
+  });
+
+  test('应处理大量卫星数据的转换', () => {
+    // 创建一个包含10个卫星的测试数据集
+    const largeDataSet = Array.from({ length: 10 }, (_, i) => ({
+      name: `Satellite-${i + 1}`,
+      noradId: `SATELLITE${i + 1}`,
+      line1: `1 SATELLITE${i + 1}U 98067A   23123.55430556  .00016717  00000-0  10270-3 0  901${i}`,
+      line2: `2 SATELLITE${i + 1}  51.6432 342.5792 0006733  32.6678  45.4686 15.49549334322062`
+    }));
+    
+    const satelliteTles = convertToSatelliteTLE(largeDataSet);
+    
+    // 验证所有10个卫星都被正确转换
+    expect(satelliteTles).toHaveLength(10);
+    
+    // 随机抽查几个卫星的数据
+    for (let i = 0; i < 3; i++) {
+      const randomIndex = Math.floor(Math.random() * 10);
+      expect(satelliteTles[randomIndex].name).toBe(`Satellite-${randomIndex + 1}`);
+      expect(satelliteTles[randomIndex].satId).toBe(`SATELLITE${randomIndex + 1}`);
+    }
+  });
+});
 
   test('应拒绝校验和错误的TLE数据', () => {
     const result = validateTLEContent(invalidTLEData);

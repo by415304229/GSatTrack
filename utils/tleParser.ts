@@ -29,6 +29,8 @@ export interface ParsedSatellite {
   meanAnomaly: number;
   meanMotion: number;
   revolutionNumber: number;
+  noradId?: string;
+  satId?: string;
 }
 
 /**
@@ -51,8 +53,7 @@ export const parseTLEContent = (content: string): ParsedSatellite[] => {
     try {
       const satellite = parseSatelliteData(nameLine, line1, line2);
       parsedSatellites.push(satellite);
-    } catch (error) {
-      console.error(`解析卫星数据时出错（行 ${i + 1}）:`, error);
+    } catch {
       // 跳过解析失败的卫星，但继续处理其他卫星
       continue;
     }
@@ -131,7 +132,7 @@ const parseSatelliteData = (name: string, line1: string, line2: string): ParsedS
  * @param line2 TLE第二行
  * @returns 卫星类型
  */
-const determineSatelliteType = (name: string, line1: string, line2: string): SatelliteType => {
+const determineSatelliteType = (name: string, _line1: string, _line2: string): SatelliteType => {
   // 确保名称不为空
   if (!name || name.trim().length === 0) {
     return SatelliteType.UNKNOWN;

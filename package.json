@@ -5,9 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && npm run lint:css --fix && vite build",
     "preview": "vite preview",
-    "test": "jest"
+    "test": "jest",
+    "lint": "eslint . --ext ts,tsx,js,jsx && stylelint '**/*.{css,scss,sass,less,styl}'",
+    "lint:fix": "eslint . --ext ts,tsx,js,jsx --fix && stylelint '**/*.{css,scss,sass,less,styl}' --fix",
+    "lint:css": "stylelint '**/*.{css,scss,sass,less,styl}'",
+    "lint:css:fix": "stylelint '**/*.{css,scss,sass,less,styl}' --fix"
   },
   "dependencies": {
     "@react-three/drei": "9.99.0",
@@ -23,14 +27,27 @@
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "@types/node": "^22.14.0",
+    "@typescript-eslint/eslint-plugin": "^8.47.0",
+    "@typescript-eslint/parser": "^8.47.0",
     "@vitejs/plugin-react": "^5.0.0",
     "autoprefixer": "^10.4.22",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
     "jest": "^30.2.0",
     "postcss": "^8.5.6",
+    "stylelint": "^16.26.0",
+    "stylelint-config-css-modules": "^4.5.1",
+    "stylelint-config-recommended": "^17.0.0",
+    "stylelint-config-standard": "^39.0.1",
+    "stylelint-config-tailwindcss": "^1.0.0",
+    "stylelint-order": "^7.0.0",
+    "stylelint-processor-styled-components": "^1.10.0",
     "tailwindcss": "^3.4.18",
     "terser": "^5.44.1",
     "ts-jest": "^29.4.5",
     "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "vite": "^6.2.0",
+    "vite-plugin-stylelint": "^6.0.2"
   }
 }

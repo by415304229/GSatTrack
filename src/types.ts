@@ -1,10 +1,13 @@
-
 export interface TLEData {
   name: string;
   line1: string;
   line2: string;
   satId: string;
   updatedAt?: Date;
+  id?: string;
+  tle1?: string;
+  tle2?: string;
+  tle?: string[];
 }
 
 export interface SatellitePos {

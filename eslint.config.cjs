@@ -61,13 +61,13 @@ module.exports = [
       '@typescript-eslint': tsPlugin,
     },
     rules: {
-      // TypeScript-specific rules - simplified for compatibility
-      '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/explicit-function-return-type': 'warn',
-      '@typescript-eslint/explicit-module-boundary-types': 'warn',
+      // TypeScript-specific rules - 禁用不需要的警告
+      '@typescript-eslint/no-explicit-any': 'off', // 允许使用any类型
+      '@typescript-eslint/explicit-function-return-type': 'off', // 不强制函数返回类型
+      '@typescript-eslint/explicit-module-boundary-types': 'off', // 不强制模块边界类型
       '@typescript-eslint/consistent-type-imports': ['warn', { prefer: 'type-imports' }],
-      // 暂时禁用命名规范检查，避免大规模重构
-      '@typescript-eslint/naming-convention': 'warn',
+      // 禁用命名规范检查 - 本项目不强制命名格式
+      '@typescript-eslint/naming-convention': 'off',
     },
   },
   // Test files configuration

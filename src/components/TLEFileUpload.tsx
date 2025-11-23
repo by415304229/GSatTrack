@@ -1,20 +1,20 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Upload, FileText, X, AlertCircle } from 'lucide-react';
-import { validateTLEContent } from '../utils/tleValidator';
+import { AlertCircle, FileText, Upload, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
 import { parseTLEContent, type ParsedSatellite } from '../utils/tleParser';
+import { validateTLEContent } from '../utils/tleValidator';
 
-import {
-  createError,
-  validateFile,
-  getErrorClassName,
-  type TLEImportError,
-  TLEImportErrorType,
-  handleError,
-  handleAsyncError
-} from '../utils/errorHandler';
-import { fetchSatelliteGroups, updateSatelliteGroup, createSatelliteGroup } from '../services/satelliteService';
 import type { SatelliteTLE } from '../services/satelliteService';
+import { createSatelliteGroup, fetchSatelliteGroups, updateSatelliteGroup } from '../services/satelliteService';
 import { type SatelliteGroup } from '../types';
+import {
+  TLEImportErrorType,
+  createError,
+  getErrorClassName,
+  handleAsyncError,
+  handleError,
+  validateFile,
+  type TLEImportError
+} from '../utils/errorHandler';
 
 interface tlefileuploadprops {
   onFileUpload: (file: File, content: string, parsedsatellites: ParsedSatellite[]) => void;
@@ -22,10 +22,10 @@ interface tlefileuploadprops {
   disabled?: boolean;
 }
 
-const TLEFileUpload: React.FC<tlefileuploadprops> = ({ 
-  onFileUpload, 
+const TLEFileUpload: React.FC<tlefileuploadprops> = ({
+  onFileUpload,
   onSatelliteGroupUpdated,
-  disabled = false 
+  disabled = false
 }) => {
   const [uploadError, setUploadError] = useState<TLEImportError | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
@@ -36,7 +36,7 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
   const [updateMode, setUpdateMode] = useState<'merge' | 'replace'>('merge');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
-  
+
   // 加载现有的卫星组
   useEffect(() => {
     const loadGroups = async () => {
@@ -47,26 +47,26 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
         // 错误已被上层组件处理
       }
     };
-    
+
     loadGroups();
   }, []);
-  
+
   // 根据文件名自动识别目标卫星组
   const autoDetectSatelliteGroup = (filename: string): void => {
     const normalizedName = filename.toLowerCase().replace(/\.(tle|txt)$/, '').replace(/[_\-]/g, ' ');
-    
+
     // 尝试根据文件名匹配现有的卫星组
-    const matchedGroup = satelliteGroups.find(group => 
-      group.name.toLowerCase().includes(normalizedName) || 
+    const matchedGroup = satelliteGroups.find(group =>
+      group.name.toLowerCase().includes(normalizedName) ||
       normalizedName.includes(group.name.toLowerCase())
     );
-    
+
     if (matchedGroup) {
       setSelectedGroupId(matchedGroup.id);
       setNewGroupName('');
     }
 
- else {
+    else {
       // 如果没有匹配，默认创建新组，并使用文件名作为建议名称
       setSelectedGroupId('new');
       setNewGroupName(normalizedName);
@@ -125,10 +125,10 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
         setUploadError(fileError);
         return;
       }
-      
+
       // 2. 读取文件内容
       const content = await readFileContent(file);
-      
+
       // 3. 验证TLE内容
       const validationResult = validateTLEContent(content);
       if (!validationResult.isValid) {
@@ -140,23 +140,23 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
         setUploadError(error);
         return;
       }
-      
+
       // 4. 解析TLE数据
       const parseResult = handleError(
         () => parseTLEContent(content),
         TLEImportErrorType.PARSE_ERROR,
         '解析TLE数据失败'
       );
-      
+
       if (!parseResult.success || !parseResult.result || parseResult.result.length === 0) {
-          const error = createError(
-            TLEImportErrorType.PARSE_ERROR,
-            '解析TLE数据失败，无法提取有效卫星数据'
-          );
-          setUploadError(error);
+        const error = createError(
+          TLEImportErrorType.PARSE_ERROR,
+          '解析TLE数据失败，无法提取有效卫星数据'
+        );
+        setUploadError(error);
         return;
       }
-      
+
       // 5. 转换为SatelliteTLE格式并处理卫星组
       try {
         const parsedTles = parseResult.result;
@@ -165,29 +165,30 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
           satId: tle.noradId || tle.satId, // 使用satId字段，优先使用noradId作为值
           line1: tle.line1,
           line2: tle.line2,
-          updatedAt: new Date()
+          updatedAt: new Date(),
+          id: tle.noradId || tle.satId
         }));
-        
+
         if (selectedGroupId === 'new') {
           // 创建新组
           if (!newGroupName.trim()) {
             throw new Error('请输入新卫星组名称');
           }
-          
+
           const newGroup = await createSatelliteGroup(newGroupName.trim(), satelliteTles);
           setUploadSuccess(`成功创建新卫星组 "${newGroup.name}"，包含 ${satelliteTles.length} 颗卫星`);
-          
+
           // 重新加载卫星组列表
           const updatedGroups = await fetchSatelliteGroups();
           setSatelliteGroups(updatedGroups);
-          
+
           // 通知父组件卫星组已更新
           if (onSatelliteGroupUpdated) {
             onSatelliteGroupUpdated(newGroup.id, satelliteTles.length);
           }
         }
 
- else {
+        else {
           // 更新现有组
           await updateSatelliteGroup({
             groupId: selectedGroupId,
@@ -199,7 +200,7 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
           const targetGroup = updatedGroups.find(g => g.id === selectedGroupId);
           const operation = updateMode === 'merge' ? '合并' : '替换';
           setUploadSuccess(`成功${operation}卫星组 "${targetGroup?.name || '未知'}"，更新了 ${satelliteTles.length} 颗卫星`);
-          
+
           // 通知父组件卫星组已更新
           if (onSatelliteGroupUpdated) {
             onSatelliteGroupUpdated(selectedGroupId, satelliteTles.length);
@@ -214,10 +215,10 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
         setUploadError(error);
         return;
       }
-      
+
       // 6. 调用上传回调
       onFileUpload(file, content, parseResult.result);
-      
+
     } catch (error) {
       const fileReadError = createError(
         TLEImportErrorType.FILE_READ_ERROR,
@@ -250,7 +251,7 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
-    
+
     const file = e.dataTransfer.files[0];
     if (file) {
       processFile(file);
@@ -266,7 +267,7 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
         className="hidden"
         accept=".tle,.txt"
       />
-      
+
       <div className="flex flex-col gap-6">
         {/* 卫星组选择区域 */}
         <div className="space-y-4">
@@ -283,7 +284,7 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
                 <option key={group.id} value={group.id}>{group.name}</option>
               ))}
             </select>
-            
+
             {selectedGroupId === 'new' && (
               <input
                 type="text"
@@ -294,7 +295,7 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
                 className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
               />
             )}
-            
+
             {selectedGroupId !== 'new' && (
               <div className="space-y-2">
                 <p className="text-sm text-slate-400">更新模式</p>
@@ -311,14 +312,14 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
             )}
           </div>
         </div>
-        
+
         {/* Drag and drop area */}
         <div
           ref={dropZoneRef}
           className={`
             border-2 border-dashed rounded-lg p-8 text-center transition-all cursor-pointer
-            ${isDragging 
-              ? 'border-cyan-500 bg-cyan-900/20' 
+            ${isDragging
+              ? 'border-cyan-500 bg-cyan-900/20'
               : 'border-slate-700 hover:border-cyan-400'}
             ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
           `}
@@ -340,13 +341,13 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
 
         {/* Traditional file upload button */}
         <div className="flex justify-center">
-          <button 
+          <button
             onClick={disabled ? undefined : handleclick}
             disabled={disabled}
             className={`
               flex items-center gap-2 px-6 py-2.5 rounded-md font-medium transition-colors
-              ${disabled 
-                ? 'bg-slate-700 text-slate-400 cursor-not-allowed' 
+              ${disabled
+                ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
                 : 'bg-cyan-500 hover:bg-cyan-600 text-white'}
             `}
           >
@@ -364,7 +365,7 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
             <div className="flex-1">
               <div className="flex justify-between items-start">
                 <h4 className="font-medium text-green-400">成功</h4>
-                <button 
+                <button
                   onClick={() => setUploadSuccess(null)}
                   className="text-slate-400 hover:text-white transition-colors"
                 >
@@ -383,7 +384,7 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
             <div className="flex-1">
               <div className="flex justify-between items-start">
                 <h4 className="font-medium text-red-400">{uploadError.message}</h4>
-                <button 
+                <button
                   onClick={() => setUploadError(null)}
                   className="text-slate-400 hover:text-white transition-colors"
                 >

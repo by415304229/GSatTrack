@@ -41,6 +41,36 @@ GSatTrack是一个现代化的全球卫星跟踪系统，提供实时卫星位�
 
 项目使用 ESLint 进行 JavaScript/TypeScript 代码检查，使用 Stylelint 进行 CSS 代码检查。
 
+---
+
+## 🔄 Code Refactoring Summary
+
+### 重构概述
+本次重构将原本冗长的 App.tsx 文件（775行）拆分为多个独立的模块，实现了代码的模块化和可维护性提升。
+
+### 主要改进
+1. **代码组织**: 按功能模块重新组织代码结构
+2. **组件解耦**: 每个组件职责单一，便于测试和维护
+3. **类型安全**: 所有组件都使用 TypeScript 编写，提供完整的类型定义
+4. **可扩展性**: 模块化架构便于后续功能扩展
+
+### 迁移清单
+- ✅ TimeControls 组件
+- ✅ StationPanel 组件  
+- ✅ SettingsPanel 组件
+- ✅ ViewToggle 组件
+- ✅ PlaneMonitor 组件
+- ✅ 时间模拟钩子
+- ✅ 主布局组件
+- ✅ 首页页面组件
+- ✅ 路由配置
+- ✅ App.tsx 简化
+
+### 后续建议
+1. 考虑使用 Context API 或 Redux 进行状态管理
+2. 添加单元测试覆盖关键组件
+3. 实现更多自定义钩子以复用逻辑
+4. 优化性能，考虑使用 React.memo 和 useMemo
 ```bash
 # 运行所有代码检查
 npm run lint

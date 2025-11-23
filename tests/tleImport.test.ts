@@ -5,22 +5,22 @@
 
 import {
   validateTLEContent
-} from '../utils/tleValidator';
+} from '../src/utils/tleValidator';
 
 import {
   parseTLEContent,
   SatelliteType,
   filterSatellitesByType
-} from '../utils/tleParser';
+} from '../src/utils/tleParser';
 
 import {
   createError,
   validateFile,
   TLEImportErrorType
-} from '../utils/errorHandler';
+} from '../src/utils/errorHandler';
 
 // 导入SatelliteTLE接口用于测试数据转换
-import { type SatelliteTLE } from '../services/satelliteService';
+import { type SatelliteTLE } from '../src/services/satelliteService';
 
 // Mock File object for testing
 class MockFile extends File {

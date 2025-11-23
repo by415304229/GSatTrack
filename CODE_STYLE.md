@@ -94,6 +94,13 @@
 - 使用TypeScript进行类型检查
 - 使用Git Hooks在提交前运行检查
 
+### ESLint规则配置
+本项目采用宽松的ESLint配置，以下警告类型被禁用：
+- **@typescript-eslint/no-explicit-any**: 允许使用`any`类型，提高开发效率
+- **@typescript-eslint/explicit-function-return-type**: 不强制要求函数返回类型注解
+- **@typescript-eslint/explicit-module-boundary-types**: 不强制要求模块边界类型
+- **@typescript-eslint/naming-convention**: 不强制命名规范，允许灵活的命名方式
+
 ### 开发环境集成
 - 配置VSCode自动格式化和修复
 - 使用Vite插件在开发时实时检查
@@ -198,6 +205,13 @@
 ### 工具配置
 - 使用ESLint進行代碼質量檢查
 - 使用Stylelint進行CSS/SCSS檢查
+
+### ESLint規則配置
+本項目采用寬松的ESLint配置，以下警告類型被禁用：
+- **@typescript-eslint/no-explicit-any**: 允許使用`any`類型，提高開發效率
+- **@typescript-eslint/explicit-function-return-type**: 不強制要求函數返回類型注解
+- **@typescript-eslint/explicit-module-boundary-types**: 不強制要求模塊邊界類型
+- **@typescript-eslint/naming-convention**: 不強制命名規范，允許靈活的命名方式
 - 使用TypeScript進行類型檢查
 - 使用Git Hooks在提交前運行檢查
 

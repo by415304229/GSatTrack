@@ -27,6 +27,7 @@ interface MainContentProps {
   viewMode: '3d' | '2d' | 'split';
   orbitWindowMinutes: number;
   selectedSatellites: Set<string>;
+  timeRate?: number;
 }
 
 const MainContent: React.FC<MainContentProps> = ({
@@ -37,7 +38,8 @@ const MainContent: React.FC<MainContentProps> = ({
   stations,
   viewMode,
   orbitWindowMinutes,
-  selectedSatellites
+  selectedSatellites,
+  timeRate
 }) => {
   if (loading) {
     return (
@@ -66,6 +68,7 @@ const MainContent: React.FC<MainContentProps> = ({
                 viewMode={viewMode}
                 orbitWindowMinutes={orbitWindowMinutes}
                 selectedSatellites={selectedSatellites}
+                timeRate={timeRate}
               />
             </div>
           );

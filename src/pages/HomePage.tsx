@@ -121,6 +121,7 @@ const HomePage: React.FC = () => {
                 viewMode={viewMode}
                 orbitWindowMinutes={orbitWindowMinutes}
                 selectedSatellites={selectedSatellites}
+                timeRate={timeRate}
             />
 
             <SettingsPanel

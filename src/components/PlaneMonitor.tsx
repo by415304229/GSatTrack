@@ -1,10 +1,10 @@
 import { Activity, Globe, Map } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
+import { type GroundStation, type OrbitalPlaneGroup, type SatellitePos } from '../types';
+import { calculateOrbitPath, getSatellitePosition } from '../utils/satMath';
 import Earth3D from './Earth3D';
 import Map2D from './Map2D';
 import SatelliteDetail from './SatelliteDetail';
-import { type GroundStation, type OrbitalPlaneGroup, type SatellitePos, type TLEData } from '../types';
-import { calculateOrbitPath, getSatellitePosition } from '../utils/satMath';
 
 const ORBIT_COLORS = ['#06b6d4', '#3b82f6'];
 
@@ -16,6 +16,7 @@ interface PlaneMonitorProps {
     viewMode?: '3d' | '2d' | 'split';
     orbitWindowMinutes: number;
     selectedSatellites: Set<string>;
+    timeRate?: number;
 }
 
 export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
@@ -25,7 +26,8 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
     groundStations,
     viewMode = 'split',
     orbitWindowMinutes,
-    selectedSatellites
+    selectedSatellites,
+    timeRate = 1
 }) => {
     const [satellites, setSatellites] = useState<SatellitePos[]>([]);
     const [selectedSatId, setSelectedSatId] = useState<string | null>(null);
@@ -33,7 +35,7 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
     // Cache for orbit paths (recalculated less frequently than position)
     const orbitCacheRef = useRef<Record<string, { path: { x: number, y: number, z: number, lat: number, lon: number }[], lastUpdated: number }>>({});
 
-    // Update Loop
+    // Update Loop - 根据时间倍速动态调整轨道缓存时间
     useEffect(() => {
         if (!active) return;
 
@@ -47,9 +49,14 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
                     const satId = tle.satId;
                     const cache = orbitCacheRef.current[satId];
 
-                    // Recalculate orbit if cache expired (10s) or time jumped significantly
+                    // 根据时间倍速动态调整缓存时间 - 倍速越高，缓存时间越短
+                    // 基础缓存时间5秒，根据倍速调整，最小1秒，最大10秒
+                    const baseCacheTime = 5000; // 5秒基础缓存时间
+                    const cacheTime = Math.max(1000, Math.min(10000, baseCacheTime / Math.max(1, timeRate || 1)));
+
+                    // Recalculate orbit if cache expired or time jumped significantly
                     const timeMs = simulatedTime.getTime();
-                    if (!cache || Math.abs(timeMs - cache.lastUpdated) > 10000) {
+                    if (!cache || Math.abs(timeMs - cache.lastUpdated) > cacheTime) {
                         // Pass simulatedTime to orbit calculator with orbit window
                         const path = calculateOrbitPath({ line1: tle.line1!, line2: tle.line2!, satId: tle.satId!, name: tle.name, updatedAt: new Date() }, simulatedTime, orbitWindowMinutes);
                         orbitCacheRef.current[satId] = { path, lastUpdated: timeMs };
@@ -64,7 +71,7 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
 
         setSatellites(positions);
 
-    }, [group, active, simulatedTime, selectedSatellites, orbitWindowMinutes]);
+    }, [group, active, simulatedTime, selectedSatellites, orbitWindowMinutes, timeRate]);
 
     const handleSatClick = (sat: SatellitePos) => {
         setSelectedSatId(sat.id);

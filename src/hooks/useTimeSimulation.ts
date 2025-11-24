@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface UseTimeSimulationOptions {
     initialTime?: Date;
@@ -29,17 +29,26 @@ export const useTimeSimulation = (options: UseTimeSimulationOptions = {}): UseTi
     const [simulatedTime, setSimulatedTime] = useState<Date>(initialTime);
     const [simulationRate, setSimulationRate] = useState<number>(initialRate);
     const [isPaused, setIsPaused] = useState<boolean>(!autoStart);
+    const lastRafTime = useRef<number>(Date.now());
 
-    // 时间模拟循环
+    // 时间模拟循环 - 使用requestAnimationFrame实现平滑动画
     useEffect(() => {
-        if (isPaused) return;
+        let handle: number;
+        const loop = () => {
+            const now = Date.now();
+            const dt = now - lastRafTime.current;
+            lastRafTime.current = now;
 
-        const interval = setInterval(() => {
-            setSimulatedTime(prev => new Date(prev.getTime() + simulationRate * 1000));
-        }, 1000);
+            if (!isPaused) {
+                setSimulatedTime(prev => new Date(prev.getTime() + dt * simulationRate));
+            }
 
-        return () => clearInterval(interval);
-    }, [simulationRate, isPaused]);
+            handle = requestAnimationFrame(loop);
+        };
+
+        handle = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(handle);
+    }, [isPaused, simulationRate]);
 
     // 控制函数
     const pause = useCallback(() => {

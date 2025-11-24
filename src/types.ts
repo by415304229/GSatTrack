@@ -28,7 +28,7 @@ export interface SatellitePos {
 export interface OrbitalPlaneGroup {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   tles: TLEData[];
   source?: string;
 }
@@ -36,7 +36,7 @@ export interface OrbitalPlaneGroup {
 export interface SatelliteGroup {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   tles: TLEData[];
   source?: string;
 }

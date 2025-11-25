@@ -29,13 +29,15 @@ GSatTrack是一个卫星跟踪系统，提供3D和2D视图展示卫星轨道、�
   CREATE INDEX idx_satellite_active ON satellite_tle_data(is_active);
   ```
 
-- **新增：** `src/services/SatelliteDatabaseService.ts` - 数据库服务
+- **新增：** `src/services/SatelliteDatabaseService.ts` - 数据库服务（支持SQLite/HTTP API双模式）
   - 实现`initializeDatabase(): Promise<void>`
   - 实现`insertSatelliteTLE(noradId: string, tleLine1: string, tleLine2: string, name?: string): Promise<void>`
   - 实现`updateSatelliteTLE(noradId: string, tleLine1: string, tleLine2: string): Promise<void>`
   - 实现`getSatelliteTLE(noradId: string): Promise<TLEData | null>`
   - 实现`getAllActiveSatellites(): Promise<TLEData[]>`
   - 实现`deleteSatelliteTLE(noradId: string): Promise<void>`
+  - 实现`switchDataSource(type: 'sqlite' | 'http'): void` - 数据源切换
+  - 实现`getDataSourceType(): 'sqlite' | 'http'` - 获取当前数据源类型
 
 - **修改：** `src/services/satelliteService.ts` - 集成数据库操作
   - 替换内存存储为SQLite数据库
@@ -43,16 +45,20 @@ GSatTrack是一个卫星跟踪系统，提供3D和2D视图展示卫星轨道、�
   - 添加数据验证和错误处理
 
 #### 1.2 技术要求
-- 使用SQLite作为本地数据库
+- 使用SQLite作为本地数据库（支持未来通过HTTP API接口替代）
 - 实现数据完整性验证（TLE格式、校验和）
 - 支持事务操作，确保数据一致性
 - 实现数据备份和恢复机制
+- 数据库服务层设计为可插拔架构，支持未来替换为HTTP API数据源
+- 所有数据库操作通过抽象接口暴露，便于后续迁移到服务端API
 
 #### 1.3 成功标准
 - ✅ TLE数据持久化存储，应用重启后数据不丢失
 - ✅ 支持高效的卫星数据查询和更新
 - ✅ 数据库操作响应时间 < 100ms
 - ✅ 提供数据导入/导出功能
+- ✅ 数据源切换功能正常工作，支持SQLite和HTTP API模式
+- ✅ 数据库服务接口设计通用化，便于未来迁移到服务端API
 
 ---
 
@@ -96,11 +102,13 @@ GSatTrack是一个卫星跟踪系统，提供3D和2D视图展示卫星轨道、�
 **当前问题：** QIANFAN型号卫星在客户端有独立的命名体系，与TLE第一行名称不一致
 
 #### 3.1 任务拆解
-- **新增：** `src/services/NamingMappingService.ts` - 命名映射服务
+- **新增：** `src/services/NamingMappingService.ts` - 命名映射服务（支持SQLite/HTTP API双模式）
   - 实现`createMappingTable()` - 创建SQLite映射表
   - 实现`getSatelliteDisplayName(noradId: string, tleName: string): string`
   - 实现`updateMapping(noradId: string, displayName: string): Promise<void>`
   - 实现`batchUpdateMappings(mappings: Array<{noradId: string, displayName: string}>): Promise<void>`
+  - 实现`switchDataSource(type: 'sqlite' | 'http'): void` - 数据源切换
+  - 实现`getDataSourceType(): 'sqlite' | 'http'` - 获取当前数据源类型
 
 - **新增：** `src/database/schema/namingMapping.sql` - 数据库表结构
   ```sql
@@ -127,12 +135,17 @@ GSatTrack是一个卫星跟踪系统，提供3D和2D视图展示卫星轨道、�
 - 支持批量更新映射关系
 - 实现名称缓存，减少数据库查询次数
 - 提供映射关系的导入/导出功能
+- 命名映射服务设计为数据源无关，支持SQLite或HTTP API
+- 实现抽象接口层，便于未来迁移到服务端API
+- 缓存机制支持本地存储和远程存储两种模式
 
 #### 3.3 成功标准
 - ✅ QIANFAN卫星显示客户端特定名称而非TLE原始名称
 - ✅ 映射关系持久化存储，重启后保持不变
 - ✅ 支持动态更新映射关系，无需重启应用
 - ✅ 提供映射关系管理界面（查看/编辑/批量导入）
+- ✅ 数据源切换功能正常工作，支持SQLite和HTTP API模式
+- ✅ 命名映射服务接口设计通用化，便于未来迁移到服务端API
 
 ---
 

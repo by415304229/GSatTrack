@@ -136,53 +136,7 @@ GSatTrack是一个卫星跟踪系统，提供3D和2D视图展示卫星轨道、�
 
 ---
 
-### 3. QIANFAN卫星命名映射系统
-**优先级：高**
-**模块：** 卫星名称显示系统
-**当前问题：** QIANFAN型号卫星在客户端有独立的命名体系，与TLE第一行名称不一致
 
-#### 3.1 任务拆解
-- **新增：** `src/services/NamingMappingService.ts` - 命名映射服务
-  - 实现`createMappingTable()` - 创建SQLite映射表
-  - 实现`getSatelliteDisplayName(noradId: string, tleName: string): string`
-  - 实现`updateMapping(noradId: string, displayName: string): Promise<void>`
-  - 实现`batchUpdateMappings(mappings: Array<{noradId: string, displayName: string}>): Promise<void>`
-
-- **新增：** `src/database/schema/namingMapping.sql` - 数据库表结构
-  ```sql
-  CREATE TABLE satellite_naming_mapping (
-    norad_id TEXT PRIMARY KEY,
-    tle_name TEXT NOT NULL,
-    display_name TEXT NOT NULL,
-    satellite_type TEXT DEFAULT 'QIANFAN',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  );
-  ```
-
-- **修改：** `src/components/SatelliteDetail.tsx` - 显示名称适配
-  - 修改卫星名称显示逻辑，优先使用映射名称
-  - 添加名称来源标识（TLE名称/映射名称）
-
-- **修改：** `src/hooks/useSatelliteManager.ts` - 集成命名映射
-  - 在卫星数据加载时同步获取显示名称
-  - 实现名称缓存机制，避免重复查询
-
-#### 3.2 技术要求
-- NoradID作为主键，确保唯一性
-- 支持批量更新映射关系
-- 实现名称缓存，减少数据库查询次数
-- 提供映射关系的导入/导出功能
-
-#### 3.3 成功标准
-- ✅ QIANFAN卫星显示客户端特定名称而非TLE原始名称
-- ✅ 映射关系持久化存储，重启后保持不变
-- ✅ 支持动态更新映射关系，无需重启应用
-- ✅ 提供映射关系管理界面（查看/编辑/批量导入）
-
----
-
-### 2. 文件上传逻辑重构
 **优先级：高**
 **模块：** TLE文件上传系统
 **当前问题：** 文件上传逻辑未正确处理NoradID作为唯一标识符，无法区分更新与添加操作
@@ -206,7 +160,7 @@ GSatTrack是一个卫星跟踪系统，提供3D和2D视图展示卫星轨道、�
 
 ---
 
-### 3. QIANFAN卫星命名映射系统
+
 **优先级：高**
 **模块：** 卫星名称显示系统
 **当前问题：** QIANFAN型号卫星在客户端有独立的命名体系，与TLE第一行名称不一致

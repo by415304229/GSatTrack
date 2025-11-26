@@ -6,9 +6,11 @@ import { type SatellitePos } from '../types';
 interface satellitedetailprops {
     sat: SatellitePos;
     onClose: () => void;
+    isTracking?: boolean;
+    onTrackToggle?: () => void;
 }
 
-const SatelliteDetail: React.FC<satellitedetailprops> = ({ sat, onClose }) => {
+const SatelliteDetail: React.FC<satellitedetailprops> = ({ sat, onClose, isTracking = false, onTrackToggle }) => {
     // Parse some additional orbital info from TLE line 2 if available
     // Line 2: 2 nnnnn iiii.iiii rrr.rrrr eeeeeee aaaaa.aaaa mmmm.mmmm nn.nnnnnnnnrrrrr
     let inclination = 'N/A';
@@ -149,8 +151,11 @@ const SatelliteDetail: React.FC<satellitedetailprops> = ({ sat, onClose }) => {
             </div>
 
             <div className="p-4 border-t border-slate-800 bg-[#020617]">
-                <button className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-bold font-mono text-xs rounded tracking-widest transition-colors flex items-center justify-center gap-2">
-                    <span className="text-zh">开始跟踪锁定</span>
+                <button 
+                    className={`w-full py-3 font-bold font-mono text-xs rounded tracking-widest transition-colors flex items-center justify-center gap-2 ${isTracking ? 'bg-red-600 hover:bg-red-500' : 'bg-cyan-600 hover:bg-cyan-500'} text-white`}
+                    onClick={onTrackToggle}
+                >
+                    <span className="text-zh">{isTracking ? '停止跟踪锁定' : '开始跟踪锁定'}</span>
                 </button>
             </div>
         </div>

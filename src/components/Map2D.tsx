@@ -1,6 +1,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { type GroundStation, type SatellitePos } from '../types';
+import { calculateTerminatorCoordinates } from '../utils/satMath';
 
 interface map2dprops {
     satellites: SatellitePos[];
@@ -56,41 +57,7 @@ const Tooltip = ({ data }: { data: hoverdata }) => {
     )
 }
 
-// Calculate terminator line coordinates for 2D map
-const calculateTerminatorLine = (time: Date, width: number, height: number) => {
-    // Get sun position in scene coordinates
-    const sunPos = calculateSunPosition(time);
 
-    // Calculate the longitude of the subsolar point
-    // This is the point on Earth directly under the sun
-    const hours = time.getUTCHours() + time.getUTCMinutes() / 60 + time.getUTCSeconds() / 3600;
-    const subsolarLon = (hours / 24) * 360 - 180;
-
-    // Generate points for the terminator line
-    const points: { x: number, y: number }[] = [];
-
-    // We'll generate points every 5 degrees of longitude
-    for (let lon = -180; lon <= 180; lon += 5) {
-        // Calculate the latitude of the terminator at this longitude
-        // The terminator line is a great circle perpendicular to the sun's direction
-        const lonDiff = Math.abs(lon - subsolarLon);
-        if (lonDiff > 180) {
-            continue;
-        }
-
-        // Calculate the latitude using the equation of the terminator line
-        // For equatorial sun, the terminator is a line where cos(lon - subsolarLon) = sin(lat)
-        const lat = Math.asin(Math.cos((lon - subsolarLon) * Math.PI / 180)) * 180 / Math.PI;
-
-        // Convert lat/lon to screen coordinates
-        const x = ((lon + 180) / 360) * width;
-        const y = ((90 - lat) / 180) * height;
-
-        points.push({ x, y });
-    }
-
-    return points;
-};
 
 const Map2D: React.FC<map2dprops> = ({ satellites, groundStations, onSatClick, simulatedTime }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -157,27 +124,31 @@ const Map2D: React.FC<map2dprops> = ({ satellites, groundStations, onSatClick, s
             }
 
             // Calculate and draw terminator line (day/night boundary)
-            const terminatorPoints = calculateTerminatorLine(simulatedTime, w, h);
+            const terminatorPoints = calculateTerminatorCoordinates(simulatedTime, w, h);
 
             if (terminatorPoints.length > 0) {
                 // Draw night overlay
                 ctx.globalAlpha = 0.4;
                 ctx.fillStyle = '#000000';
 
+                // Create a closed path for the night area
                 ctx.beginPath();
+
+                // Start from the top-left corner
+                ctx.moveTo(0, 0);
+                // Go to the top-right corner
+                ctx.lineTo(w, 0);
+                // Go to the bottom-right corner
+                ctx.lineTo(w, h);
+                // Go to the bottom-left corner
+                ctx.lineTo(0, h);
+                // Go back to the top-left corner to close the rectangle
+                ctx.lineTo(0, 0);
+
+                // Now draw the terminator line in the opposite direction to create a hole for the day area
                 ctx.moveTo(terminatorPoints[0].x, terminatorPoints[0].y);
-
-                for (let i = 1; i < terminatorPoints.length; i++) {
+                for (let i = terminatorPoints.length - 1; i >= 0; i--) {
                     ctx.lineTo(terminatorPoints[i].x, terminatorPoints[i].y);
-                }
-
-                // Close the path to cover the night area
-                if (terminatorPoints[0].y < terminatorPoints[terminatorPoints.length - 1].y) {
-                    ctx.lineTo(w, h);
-                    ctx.lineTo(0, h);
-                } else {
-                    ctx.lineTo(0, 0);
-                    ctx.lineTo(w, 0);
                 }
 
                 ctx.closePath();

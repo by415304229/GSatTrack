@@ -1,5 +1,5 @@
 import * as satellite from 'satellite.js';
-import { type SatellitePos, type TLEData } from '../types';
+import { type TLEData } from '../types';
 
 const EARTH_RADIUS_KM = 6371;
 
@@ -44,26 +44,75 @@ export const latLonToScene = (lat: number, lon: number, radius: number = 1) => {
 export const calculateSunPosition = (time: Date): { x: number, y: number, z: number } => {
   // Get hours since midnight
   const hours = time.getUTCHours() + time.getUTCMinutes() / 60 + time.getUTCSeconds() / 3600;
-  
+
   // Calculate rotation angle based on time (24 hours = 360 degrees)
   // This simulates Earth's rotation relative to the sun
   const rotationAngle = (hours / 24) * 2 * Math.PI;
-  
-  // Sun position in equatorial coordinate system (simplified model)
-  // We assume the sun is always in the equatorial plane for simplicity
+
+  // Earth's axial tilt (obliquity of the ecliptic) in radians (~23.5 degrees)
+  const axialTilt = 23.5 * Math.PI / 180;
+
+  // Sun position in equatorial coordinate system
+  // Consider Earth's axial tilt for more accurate sun position
   const sunEcefX = Math.cos(rotationAngle);
   const sunEcefY = Math.sin(rotationAngle);
-  const sunEcefZ = 0; // Equatorial plane assumption
-  
+  const sunEcefZ = Math.sin(axialTilt); // Account for Earth's axial tilt
+
+  // Normalize the sun position vector
+  const magnitude = Math.sqrt(sunEcefX * sunEcefX + sunEcefY * sunEcefY + sunEcefZ * sunEcefZ);
+  const normalizedX = sunEcefX / magnitude;
+  const normalizedY = sunEcefY / magnitude;
+  const normalizedZ = sunEcefZ / magnitude;
+
   // Apply our scene mapping (ECEF X->Z, Y->X, Z->Y)
   // Scene X = ECEF Y
   // Scene Y = ECEF Z
   // Scene Z = ECEF X
   return {
-    x: sunEcefY,
-    y: sunEcefZ,
-    z: sunEcefX
+    x: normalizedY,
+    y: normalizedZ,
+    z: normalizedX
   };
+};
+
+// Calculates the terminator line coordinates for a given time and map dimensions
+export const calculateTerminatorCoordinates = (time: Date, width: number, height: number) => {
+  // Get sun position
+  const sunPos = calculateSunPosition(time);
+
+  // Calculate the subsolar point (point on Earth directly under the sun)
+  const subsolarLat = Math.asin(sunPos.y) * 180 / Math.PI;
+  const hours = time.getUTCHours() + time.getUTCMinutes() / 60 + time.getUTCSeconds() / 3600;
+  const subsolarLon = (hours / 24) * 360 - 180;
+
+  // Generate points for the terminator line
+  const points: { x: number, y: number }[] = [];
+
+  // Generate points every 1 degree of longitude for a smooth terminator line
+  for (let lon = -180; lon <= 180; lon += 1) {
+    // Calculate the latitude of the terminator at this longitude
+    // Using the formula: tan(lat) = -cos(lon - subsolarLon) / tan(subsolarLat)
+    const lonDiff = (lon - subsolarLon) * Math.PI / 180;
+    const subsolarLatRad = subsolarLat * Math.PI / 180;
+
+    // Calculate the terminator latitude
+    let lat: number;
+    if (Math.abs(subsolarLat) === 90) {
+      // Special case: sun is at one of the poles
+      lat = subsolarLat > 0 ? 90 - Math.abs(lonDiff) * 180 / Math.PI : -90 + Math.abs(lonDiff) * 180 / Math.PI;
+    } else {
+      const tanLat = -Math.cos(lonDiff) / Math.tan(subsolarLatRad);
+      lat = Math.atan(tanLat) * 180 / Math.PI;
+    }
+
+    // Convert lat/lon to screen coordinates
+    const x = ((lon + 180) / 360) * width;
+    const y = ((90 - lat) / 180) * height;
+
+    points.push({ x, y });
+  }
+
+  return points;
 };
 
 

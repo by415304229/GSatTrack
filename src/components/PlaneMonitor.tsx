@@ -31,6 +31,8 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
 }) => {
     const [satellites, setSatellites] = useState<SatellitePos[]>([]);
     const [selectedSatId, setSelectedSatId] = useState<string | null>(null);
+    const [isTracking, setIsTracking] = useState<boolean>(false);
+    const [trackedSatId, setTrackedSatId] = useState<string | null>(null);
 
     // Cache for orbit paths (recalculated less frequently than position)
     const orbitCacheRef = useRef<Record<string, { path: { x: number, y: number, z: number, lat: number, lon: number }[], lastUpdated: number }>>({});
@@ -92,7 +94,33 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
         setSelectedSatId(sat.id);
     };
 
+    const handleTrackToggle = () => {
+        if (isTracking) {
+            // Stop tracking
+            setIsTracking(false);
+            setTrackedSatId(null);
+        } else if (selectedSatId) {
+            // Start tracking
+            setIsTracking(true);
+            setTrackedSatId(selectedSatId);
+        }
+    };
+
+    // Keyboard event listener for ESC key
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape' && isTracking) {
+                setIsTracking(false);
+                setTrackedSatId(null);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isTracking]);
+
     const selectedSat = satellites.find(s => s.id === selectedSatId);
+    const trackedSat = satellites.find(s => s.id === trackedSatId);
 
     if (!active) return null;
 
@@ -100,7 +128,12 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
         <div className="flex flex-col h-full bg-[#020617] relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent"></div>
             {selectedSat && (
-                <SatelliteDetail sat={selectedSat} onClose={() => setSelectedSatId(null)} />
+                <SatelliteDetail
+                    sat={selectedSat}
+                    onClose={() => setSelectedSatId(null)}
+                    isTracking={isTracking && trackedSatId === selectedSat.id}
+                    onTrackToggle={handleTrackToggle}
+                />
             )}
 
             {/* Monitor Header */}
@@ -134,6 +167,8 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
                                 groundStations={groundStations}
                                 onSatClick={handleSatClick}
                                 simulatedTime={simulatedTime}
+                                isTracking={isTracking}
+                                trackedSatellite={trackedSat}
                             />
                         </div>
                     </div>
@@ -169,6 +204,8 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
                                     groundStations={groundStations}
                                     onSatClick={handleSatClick}
                                     simulatedTime={simulatedTime}
+                                    isTracking={isTracking}
+                                    trackedSatellite={trackedSat}
                                 />
                             </div>
                         </div>
@@ -182,6 +219,7 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
                                     satellites={satellites}
                                     groundStations={groundStations}
                                     onSatClick={handleSatClick}
+                                    simulatedTime={simulatedTime}
                                 />
                             </div>
                         </div>

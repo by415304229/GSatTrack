@@ -47,9 +47,9 @@ module.exports = [
       'react-hooks/exhaustive-deps': 'warn',
     },
   },
-  // TypeScript configuration
+  // TypeScript configuration for source files and types.ts
   {
-    files: ['**/*.{ts,tsx}'],
+    files: ['src/**/*.{ts,tsx}', 'types.ts'],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
@@ -67,6 +67,28 @@ module.exports = [
       '@typescript-eslint/explicit-module-boundary-types': 'off', // 不强制模块边界类型
       '@typescript-eslint/consistent-type-imports': ['warn', { prefer: 'type-imports' }],
       // 禁用命名规范检查 - 本项目不强制命名格式
+      '@typescript-eslint/naming-convention': 'off',
+    },
+  },
+  // TypeScript configuration for test files and config files (without project option)
+  {
+    files: ['tests/**/*.{ts,tsx}', 'vite.config.ts'],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        // No project option for test files
+        tsconfigRootDir: __dirname,
+      },
+    },
+    plugins: {
+      '@typescript-eslint': tsPlugin,
+    },
+    rules: {
+      // TypeScript-specific rules for test files
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/explicit-module-boundary-types': 'off',
+      '@typescript-eslint/consistent-type-imports': ['warn', { prefer: 'type-imports' }],
       '@typescript-eslint/naming-convention': 'off',
     },
   },

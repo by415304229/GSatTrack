@@ -121,7 +121,9 @@ const parseSatelliteData = (name: string, line1: string, line2: string): ParsedS
     argumentOfPerigee,
     meanAnomaly,
     meanMotion,
-    revolutionNumber
+    revolutionNumber,
+    noradId: satelliteNumber,
+    satId: satelliteNumber
   };
 };
 

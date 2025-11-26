@@ -1,5 +1,6 @@
 import { Activity, Clock, Globe, Radio, ShieldCheck, X } from 'lucide-react';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { getSatelliteDisplayName } from '../services/NamingMappingService';
 import { type SatellitePos } from '../types';
 
 interface satellitedetailprops {
@@ -12,6 +13,20 @@ const SatelliteDetail: React.FC<satellitedetailprops> = ({ sat, onClose }) => {
     // Line 2: 2 nnnnn iiii.iiii rrr.rrrr eeeeeee aaaaa.aaaa mmmm.mmmm nn.nnnnnnnnrrrrr
     let inclination = 'N/A';
     let period = 'N/A';
+    const [displayName, setDisplayName] = useState<string>(sat.name);
+    const [isUsingMapping, setIsUsingMapping] = useState<boolean>(false);
+
+    // 获取显示名称
+    useEffect(() => {
+        const fetchDisplayName = async () => {
+            if (sat.tle && sat.tle.satId) {
+                const name = await getSatelliteDisplayName(sat.tle.satId, sat.name);
+                setDisplayName(name);
+                setIsUsingMapping(name !== sat.name);
+            }
+        };
+        fetchDisplayName();
+    }, [sat]);
 
     if (sat.tle && sat.tle.line2) {
         const line2 = sat.tle.line2;
@@ -45,7 +60,12 @@ const SatelliteDetail: React.FC<satellitedetailprops> = ({ sat, onClose }) => {
                     </div>
                     <div>
                         <div className="text-[10px] text-slate-400 font-mono uppercase tracking-widest text-zh">目标锁定</div>
-                        <h2 className="text-white font-bold font-mono text-lg leading-none truncate max-w-[200px]">{sat.name}</h2>
+                        <h2 className="text-white font-bold font-mono text-lg leading-none truncate max-w-[200px]">{displayName}</h2>
+                        {isUsingMapping && (
+                            <div className="text-[8px] text-slate-500 font-mono mt-1">
+                                <span className="text-cyan-500">映射名称</span> | 原始名称: {sat.name}
+                            </div>
+                        )}
                     </div>
                 </div>
                 <button

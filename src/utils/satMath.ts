@@ -39,6 +39,33 @@ export const latLonToScene = (lat: number, lon: number, radius: number = 1) => {
   };
 };
 
+// Calculates sun position based on time
+// Returns normalized direction vector in scene coordinates
+export const calculateSunPosition = (time: Date): { x: number, y: number, z: number } => {
+  // Get hours since midnight
+  const hours = time.getUTCHours() + time.getUTCMinutes() / 60 + time.getUTCSeconds() / 3600;
+  
+  // Calculate rotation angle based on time (24 hours = 360 degrees)
+  // This simulates Earth's rotation relative to the sun
+  const rotationAngle = (hours / 24) * 2 * Math.PI;
+  
+  // Sun position in equatorial coordinate system (simplified model)
+  // We assume the sun is always in the equatorial plane for simplicity
+  const sunEcefX = Math.cos(rotationAngle);
+  const sunEcefY = Math.sin(rotationAngle);
+  const sunEcefZ = 0; // Equatorial plane assumption
+  
+  // Apply our scene mapping (ECEF X->Z, Y->X, Z->Y)
+  // Scene X = ECEF Y
+  // Scene Y = ECEF Z
+  // Scene Z = ECEF X
+  return {
+    x: sunEcefY,
+    y: sunEcefZ,
+    z: sunEcefX
+  };
+};
+
 
 export const getSatellitePosition = (tle: TLEData, date: Date): { id: string; name: string; x: number; y: number; z: number; lat: number; lon: number; alt: number; velocity: number; orbitPath?: { x: number, y: number, z: number, lat: number, lon: number }[]; color?: string; tle?: TLEData } | null => {
   const satrec = satellite.twoline2satrec(tle.line1, tle.line2);

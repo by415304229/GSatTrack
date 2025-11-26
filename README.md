@@ -18,8 +18,17 @@ GSatTrack是一个现代化的全球卫星跟踪系统，提供实时卫星位�
 - **地面站管理**: 添加、删除和管理地面站，查看卫星与地面站的相对位置
 - **轨道窗口设置**: 可调节轨道预测时间窗口（1-120分钟）
 - **卫星筛选**: 支持按名称或ID搜索卫星，可选择特定卫星进行跟踪
+- **TLE文件导入**: 支持拖放上传和传统文件选择，支持"覆盖"和"追加"两种更新模式
+- **卫星命名映射**: 支持自定义卫星显示名称，特别是针对QIANFAN卫星的特定命名需求
 - **响应式设计**: 适配不同屏幕尺寸，提供良好的移动端体验
 - **中文本地化**: 完整的中文界面，优化中文字体显示
+
+### 正在开发的功能
+
+- **3D地球时间光照效果**: 根据时间动态调整地球光照，显示昼夜变化
+- **2D视图晨昏线效果**: 在2D地图上绘制准确的晨昏线
+- **卫星可见性分析**: 计算卫星对特定地面站的可见时间段
+- **地面测控站弧段规划**: 为地面站规划最优测控弧段
 
 ### 技术栈
 
@@ -28,6 +37,7 @@ GSatTrack是一个现代化的全球卫星跟踪系统，提供实时卫星位�
 - **UI组件**: Tailwind CSS + Lucide Icons
 - **状态管理**: React Hooks
 - **构建工具**: Vite
+- **数据处理**: satellite.js
 
 ### 安装步骤
 
@@ -41,36 +51,6 @@ GSatTrack是一个现代化的全球卫星跟踪系统，提供实时卫星位�
 
 项目使用 ESLint 进行 JavaScript/TypeScript 代码检查，使用 Stylelint 进行 CSS 代码检查。
 
----
-
-## 🔄 Code Refactoring Summary
-
-### 重构概述
-本次重构将原本冗长的 App.tsx 文件（775行）拆分为多个独立的模块，实现了代码的模块化和可维护性提升。
-
-### 主要改进
-1. **代码组织**: 按功能模块重新组织代码结构
-2. **组件解耦**: 每个组件职责单一，便于测试和维护
-3. **类型安全**: 所有组件都使用 TypeScript 编写，提供完整的类型定义
-4. **可扩展性**: 模块化架构便于后续功能扩展
-
-### 迁移清单
-- ✅ TimeControls 组件
-- ✅ StationPanel 组件  
-- ✅ SettingsPanel 组件
-- ✅ ViewToggle 组件
-- ✅ PlaneMonitor 组件
-- ✅ 时间模拟钩子
-- ✅ 主布局组件
-- ✅ 首页页面组件
-- ✅ 路由配置
-- ✅ App.tsx 简化
-
-### 后续建议
-1. 考虑使用 Context API 或 Redux 进行状态管理
-2. 添加单元测试覆盖关键组件
-3. 实现更多自定义钩子以复用逻辑
-4. 优化性能，考虑使用 React.memo 和 useMemo
 ```bash
 # 运行所有代码检查
 npm run lint
@@ -78,8 +58,6 @@ npm run lint
 # 自动修复代码问题
 npm run lint:fix
 ```
-
-详细的 CSS 代码质量检查使用说明，请参考 [README_CSS_LINTING.md](README_CSS_LINTING.md)
 
 #### 安装依赖
 
@@ -138,6 +116,10 @@ npm run dev
    - 上传后系统会自动验证TLE数据格式并显示导入结果
    - 支持批量导入多颗卫星数据，每颗卫星需要3行数据（名称行、第一行轨道数据、第二行轨道数据）
 
+7. **卫星命名映射**：
+   - 系统自动为QIANFAN等特定类型卫星应用自定义显示名称
+   - 支持通过命名映射服务管理卫星显示名称
+
 #### 构建生产版本
 
 ```bash
@@ -179,7 +161,8 @@ npm run build
 3. 验证卫星轨道和位置数据是否正确更新
 4. 测试时间控制功能是否正常工作
 5. 检查地面站管理功能
-6. 验证中文界面是否正确显示
+6. 验证TLE文件导入功能是否正常工作
+7. 验证中文界面是否正确显示
 
 ### 常见问题
 
@@ -194,6 +177,11 @@ npm run build
 3. **中文显示模糊**：
    - 确保浏览器已加载Noto Sans SC字体
    - 检查浏览器字体渲染设置
+
+4. **TLE文件导入失败**：
+   - 检查文件格式是否为.tle或.txt
+   - 确保文件内容符合TLE数据格式规范
+   - 检查每颗卫星是否包含3行数据（名称行、第一行轨道数据、第二行轨道数据）
 
 ---
 
@@ -211,8 +199,17 @@ GSatTrack is a modern global satellite tracking system that provides real-time s
 - **Ground Station Management**: Add, delete, and manage ground stations, view relative positions between satellites and stations
 - **Orbit Window Settings**: Adjustable orbit prediction time window (1-120 minutes)
 - **Satellite Filtering**: Search satellites by name or ID, select specific satellites for tracking
+- **TLE File Import**: Support for drag-and-drop upload and traditional file selection, with "override" and "append" update modes
+- **Satellite Naming Mapping**: Support for custom satellite display names, especially for QIANFAN satellites
 - **Responsive Design**: Adapts to different screen sizes, providing a good mobile experience
 - **Chinese Localization**: Complete Chinese interface with optimized Chinese font display
+
+### Features in Development
+
+- **3D Earth Time Lighting Effect**: Dynamically adjust Earth lighting based on time, showing day and night changes
+- **2D View Terminator Line Effect**: Draw accurate terminator lines on 2D maps
+- **Satellite Visibility Analysis**: Calculate satellite visibility time periods for specific ground stations
+- **Ground Station Arc Planning**: Plan optimal tracking arcs for ground stations
 
 ### Tech Stack
 
@@ -221,6 +218,7 @@ GSatTrack is a modern global satellite tracking system that provides real-time s
 - **UI Components**: Tailwind CSS + Lucide Icons
 - **State Management**: React Hooks
 - **Build Tool**: Vite
+- **Data Processing**: satellite.js
 
 ### Installation Steps
 
@@ -287,6 +285,10 @@ npm run dev
    - After upload, the system will automatically verify the TLE data format and display the import results
    - Supports batch importing multiple satellites, each satellite requires 3 lines of data (name line, first line of orbit data, second line of orbit data)
 
+7. **Satellite Naming Mapping**:
+   - The system automatically applies custom display names for specific satellite types like QIANFAN
+   - Supports managing satellite display names through the naming mapping service
+
 #### Building for Production
 
 ```bash
@@ -328,7 +330,8 @@ After deployment, verify through the following methods:
 3. Verify that satellite orbit and position data update correctly
 4. Test if time control functions work properly
 5. Check ground station management functionality
-6. Verify that the Chinese interface displays correctly
+6. Verify that TLE file import functionality works correctly
+7. Verify that the Chinese interface displays correctly
 
 ### Common Issues
 
@@ -343,3 +346,8 @@ After deployment, verify through the following methods:
 3. **Chinese Text Display Blurry**:
    - Ensure the browser has loaded the Noto Sans SC font
    - Check browser font rendering settings
+
+4. **TLE File Import Failed**:
+   - Check if the file format is .tle or .txt
+   - Ensure the file content conforms to TLE data format specifications
+   - Check if each satellite contains 3 lines of data (name line, first line of orbit data, second line of orbit data)

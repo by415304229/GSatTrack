@@ -1,14 +1,22 @@
 import { Settings, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
+export interface SatelliteProperties {
+    id: string;
+    name: string;
+    displayName?: string;
+    [key: string]: any;
+}
+
 export interface SettingsPanelProps {
-  isOpen: boolean;
-  onClose: () => void;
-  orbitWindowMinutes: number;
-  onOrbitWindowChange: (minutes: number) => void;
-  availableSatellites: Array<{ id: string, name: string }>;
-  selectedSatellites: Set<string>;
-  onSatelliteToggle: (satId: string) => void;
+    isOpen: boolean;
+    onClose: () => void;
+    orbitWindowMinutes: number;
+    onOrbitWindowChange: (minutes: number) => void;
+    availableSatellites: SatelliteProperties[];
+    selectedSatellites: Set<string>;
+    onSatelliteToggle: (satId: string) => void;
+    onSatellitePropertyChange: (satId: string, property: string, value: any) => void;
 }
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({
@@ -18,10 +26,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     onOrbitWindowChange,
     selectedSatellites,
     onSatelliteToggle,
-    availableSatellites
+    availableSatellites,
+    onSatellitePropertyChange
 }) => {
     const [windowInput, setWindowInput] = useState(orbitWindowMinutes.toString());
     const [searchTerm, setSearchTerm] = useState('');
+    const [editingSatelliteId, setEditingSatelliteId] = useState<string | null>(null);
+    const [editingProperty, setEditingProperty] = useState<string | null>(null);
+    const [editValue, setEditValue] = useState<string>('');
 
     // 实时更新轨道窗口时间
     useEffect(() => {
@@ -37,11 +49,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         sat.id.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // 全选/全不选功能
+    // 全选/全不选/反选功能
     const handleSelectAll = () => {
         // 检查当前过滤结果中是否所有卫星都已选中
         const allFilteredSelected = filteredSatellites.every(sat => selectedSatellites.has(sat.id));
-        // 检查是否有部分选中
+        // 检查当前是否有部分卫星被选中
         const hasPartialSelection = filteredSatellites.some(sat => selectedSatellites.has(sat.id)) && !allFilteredSelected;
 
         if (allFilteredSelected) {
@@ -52,7 +64,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 }
             });
         } else if (hasPartialSelection) {
-            // 反选：取消选中的改为选中，选中的改为取消选中
+            // 反选：反转所有过滤结果中的卫星选中状态
             filteredSatellites.forEach(sat => {
                 onSatelliteToggle(sat.id);
             });
@@ -64,6 +76,52 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 }
             });
         }
+    };
+
+    // 全选所有可用卫星（包括未过滤的）
+    const handleSelectAllAvailable = () => {
+        // 检查是否所有可用卫星都已选中
+        const allSelected = availableSatellites.every(sat => selectedSatellites.has(sat.id));
+
+        if (allSelected) {
+            // 全不选：取消选中所有可用卫星
+            availableSatellites.forEach(sat => {
+                if (selectedSatellites.has(sat.id)) {
+                    onSatelliteToggle(sat.id);
+                }
+            });
+        } else {
+            // 全选：选中所有可用卫星
+            availableSatellites.forEach(sat => {
+                if (!selectedSatellites.has(sat.id)) {
+                    onSatelliteToggle(sat.id);
+                }
+            });
+        }
+    };
+
+    // 开始编辑卫星属性
+    const startEditing = (satId: string, property: string, currentValue: any) => {
+        setEditingSatelliteId(satId);
+        setEditingProperty(property);
+        setEditValue(currentValue || '');
+    };
+
+    // 保存卫星属性
+    const saveEditing = () => {
+        if (editingSatelliteId && editingProperty) {
+            onSatellitePropertyChange(editingSatelliteId, editingProperty, editValue);
+            setEditingSatelliteId(null);
+            setEditingProperty(null);
+            setEditValue('');
+        }
+    };
+
+    // 取消编辑
+    const cancelEditing = () => {
+        setEditingSatelliteId(null);
+        setEditingProperty(null);
+        setEditValue('');
     };
 
     if (!isOpen) return null;
@@ -141,17 +199,63 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
                         <div className="space-y-1 max-h-[200px] overflow-y-auto">
                             {filteredSatellites.map((sat) => (
-                                <div key={sat.id} className="flex items-center justify-between p-2 bg-slate-900 rounded border border-slate-800 hover:border-slate-700 transition-colors">
-                                    <label className="flex items-center gap-2 cursor-pointer flex-1">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedSatellites.has(sat.id)}
-                                            onChange={() => onSatelliteToggle(sat.id)}
-                                            className="rounded text-cyan-600 bg-slate-800 border-slate-600 focus:ring-cyan-500"
-                                        />
-                                        <span className="text-xs font-mono text-slate-300">{sat.name}</span>
-                                    </label>
-                                    <span className="text-[10px] text-slate-500 font-mono">{sat.id}</span>
+                                <div key={sat.id} className="p-2 bg-slate-900 rounded border border-slate-800 hover:border-slate-700 transition-colors">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="flex items-center gap-2 cursor-pointer flex-1">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedSatellites.has(sat.id)}
+                                                onChange={() => onSatelliteToggle(sat.id)}
+                                                className="rounded text-cyan-600 bg-slate-800 border-slate-600 focus:ring-cyan-500"
+                                            />
+                                            <span className="text-xs font-mono text-slate-300">{sat.name}</span>
+                                        </label>
+                                        <span className="text-[10px] text-slate-500 font-mono">{sat.id}</span>
+                                    </div>
+
+                                    {/* 卫星属性编辑 */}
+                                    <div className="ml-6 space-y-1">
+                                        {/* 显示名称编辑 */}
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] text-slate-500 font-mono w-16">显示名称:</span>
+                                            {editingSatelliteId === sat.id && editingProperty === 'displayName' ? (
+                                                <div className="flex items-center gap-1 flex-1">
+                                                    <input
+                                                        type="text"
+                                                        value={editValue}
+                                                        onChange={(e) => setEditValue(e.target.value)}
+                                                        className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                                                        onBlur={saveEditing}
+                                                        onKeyPress={(e) => e.key === 'Enter' && saveEditing()}
+                                                    />
+                                                    <button
+                                                        onClick={saveEditing}
+                                                        className="px-2 py-1 bg-emerald-900 hover:bg-emerald-800 text-emerald-300 rounded text-[10px] transition-colors"
+                                                    >
+                                                        保存
+                                                    </button>
+                                                    <button
+                                                        onClick={cancelEditing}
+                                                        className="px-2 py-1 bg-red-900 hover:bg-red-800 text-red-300 rounded text-[10px] transition-colors"
+                                                    >
+                                                        取消
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-2 flex-1">
+                                                    <span className="text-xs font-mono text-cyan-400">
+                                                        {sat.displayName || sat.name}
+                                                    </span>
+                                                    <button
+                                                        onClick={() => startEditing(sat.id, 'displayName', sat.displayName || sat.name)}
+                                                        className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] transition-colors"
+                                                    >
+                                                        编辑
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                             ))}
                             {filteredSatellites.length === 0 && (

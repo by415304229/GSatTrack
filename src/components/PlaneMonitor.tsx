@@ -34,6 +34,8 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
 
     // Cache for orbit paths (recalculated less frequently than position)
     const orbitCacheRef = useRef<Record<string, { path: { x: number, y: number, z: number, lat: number, lon: number }[], lastUpdated: number }>>({});
+    // Cache for current satellite positions to avoid unnecessary re-renders
+    const currentSatellitesRef = useRef<SatellitePos[]>([]);
 
     // Update Loop - 根据时间倍速动态调整轨道缓存时间
     useEffect(() => {
@@ -69,7 +71,20 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
                 return pos;
             }).filter(p => p !== null) as SatellitePos[];
 
-        setSatellites(positions);
+        // Only update state if satellites have changed significantly
+        const hasChanged = positions.length !== currentSatellitesRef.current.length ||
+            positions.some((sat, idx) => {
+                const currentSat = currentSatellitesRef.current[idx];
+                if (!currentSat) return true;
+                // Check if position has changed significantly (threshold: 0.001 scene units)
+                const posDiff = Math.abs(sat.x - currentSat.x) + Math.abs(sat.y - currentSat.y) + Math.abs(sat.z - currentSat.z);
+                return posDiff > 0.001;
+            });
+
+        if (hasChanged) {
+            currentSatellitesRef.current = positions;
+            setSatellites(positions);
+        }
 
     }, [group, active, simulatedTime, selectedSatellites, orbitWindowMinutes, timeRate]);
 
@@ -118,6 +133,7 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
                                 satellites={satellites}
                                 groundStations={groundStations}
                                 onSatClick={handleSatClick}
+                                simulatedTime={simulatedTime}
                             />
                         </div>
                     </div>
@@ -134,6 +150,7 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
                                 satellites={satellites}
                                 groundStations={groundStations}
                                 onSatClick={handleSatClick}
+                                simulatedTime={simulatedTime}
                             />
                         </div>
                     </div>
@@ -151,6 +168,7 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
                                     satellites={satellites}
                                     groundStations={groundStations}
                                     onSatClick={handleSatClick}
+                                    simulatedTime={simulatedTime}
                                 />
                             </div>
                         </div>

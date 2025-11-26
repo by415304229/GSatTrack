@@ -13,6 +13,7 @@ export interface TLEData {
 export interface SatellitePos {
   id: string;
   name: string;
+  displayName?: string;
   x: number; // ECEF X
   y: number; // ECEF Y (Three.js Z or Y depending on up-axis)
   z: number; // ECEF Z

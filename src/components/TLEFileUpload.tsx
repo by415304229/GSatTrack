@@ -4,17 +4,8 @@ import { parseTLEContent, type ParsedSatellite } from '../utils/tleParser';
 import { validateTLEContent } from '../utils/tleValidator';
 
 import type { SatelliteTLE } from '../services/satelliteService';
-import { createSatelliteGroup, fetchSatelliteGroups, updateSatelliteGroup } from '../services/satelliteService';
+import { fetchSatelliteGroups, updateSatelliteGroup } from '../services/satelliteService';
 import { type SatelliteGroup } from '../types';
-import {
-  TLEImportErrorType,
-  createError,
-  getErrorClassName,
-  handleAsyncError,
-  handleError,
-  validateFile,
-  type TLEImportError
-} from '../utils/errorHandler';
 
 interface tlefileuploadprops {
   onFileUpload: (file: File, content: string, parsedsatellites: ParsedSatellite[]) => void;
@@ -27,13 +18,11 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
   onSatelliteGroupUpdated,
   disabled = false
 }) => {
-  const [uploadError, setUploadError] = useState<TLEImportError | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [satelliteGroups, setSatelliteGroups] = useState<SatelliteGroup[]>([]);
-  const [selectedGroupId, setSelectedGroupId] = useState<string>('new');
-  const [newGroupName, setNewGroupName] = useState<string>('');
-  const [updateMode, setUpdateMode] = useState<'merge' | 'replace'>('merge');
+  const [selectedGroupId, setSelectedGroupId] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
@@ -41,42 +30,28 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
   useEffect(() => {
     const loadGroups = async () => {
       try {
+        console.log('加载卫星组...');
         const groups = await fetchSatelliteGroups();
         setSatelliteGroups(groups);
-      } catch {
-        // 错误已被上层组件处理
+        // 默认选择第一个卫星组
+        if (groups.length > 0) {
+          setSelectedGroupId(groups[0].id);
+          console.log(`默认选择卫星组: ${groups[0].name} (${groups[0].id})`);
+        }
+        console.log(`加载完成，共 ${groups.length} 个卫星组`);
+      } catch (error) {
+        console.error('加载卫星组失败:', error);
       }
     };
 
     loadGroups();
   }, []);
 
-  // 根据文件名自动识别目标卫星组
-  const autoDetectSatelliteGroup = (filename: string): void => {
-    const normalizedName = filename.toLowerCase().replace(/\.(tle|txt)$/, '').replace(/[_\-]/g, ' ');
-
-    // 尝试根据文件名匹配现有的卫星组
-    const matchedGroup = satelliteGroups.find(group =>
-      group.name.toLowerCase().includes(normalizedName) ||
-      normalizedName.includes(group.name.toLowerCase())
-    );
-
-    if (matchedGroup) {
-      setSelectedGroupId(matchedGroup.id);
-      setNewGroupName('');
-    }
-
-    else {
-      // 如果没有匹配，默认创建新组，并使用文件名作为建议名称
-      setSelectedGroupId('new');
-      setNewGroupName(normalizedName);
-    }
-  };
-
   // 处理文件选择
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      console.log('用户选择了文件:', file.name);
       processFile(file);
     }
     // 重置文件输入，允许选择相同文件多次
@@ -85,29 +60,20 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
 
   // 读取文件内容
   const readFileContent = (file: File): Promise<string> => {
-    return handleAsyncError<string>(
-      () => new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const content = e.target?.result as string;
-          if (!content) {
-            reject(new Error('文件内容为空'));
-          } else {
-            resolve(content);
-          }
-        };
-        reader.onerror = () => {
-          reject(new Error('文件读取失败'));
-        };
-        reader.readAsText(file);
-      }),
-      TLEImportErrorType.UNKNOWN_ERROR,
-      '文件读取失败'
-    ).then((result) => {
-      if (!result.success || !result.result) {
-        throw new Error(result.error?.message || '文件读取失败');
-      }
-      return result.result;
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        if (!content) {
+          reject(new Error('文件内容为空'));
+        } else {
+          resolve(content);
+        }
+      };
+      reader.onerror = () => {
+        reject(new Error('文件读取失败'));
+      };
+      reader.readAsText(file);
     });
   };
 
@@ -116,121 +82,92 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
     // 重置错误和成功状态
     setUploadError(null);
     setUploadSuccess(null);
-    // 根据文件名自动识别卫星组
-    autoDetectSatelliteGroup(file.name);
+
+    console.log('开始处理文件:', file.name);
+
+    if (!selectedGroupId) {
+      const errorMsg = '请选择目标卫星组';
+      setUploadError(errorMsg);
+      console.error(errorMsg);
+      return;
+    }
+
     try {
-      // 1. 验证文件
-      const fileError = validateFile(file);
-      if (fileError) {
-        setUploadError(fileError);
-        return;
-      }
+      console.log('选择的卫星组ID:', selectedGroupId);
 
-      // 2. 读取文件内容
+      // 1. 读取文件内容
+      console.log('读取文件内容...');
       const content = await readFileContent(file);
+      console.log('文件内容读取成功，长度:', content.length);
 
-      // 3. 验证TLE内容
+      // 2. 验证TLE内容
+      console.log('验证TLE内容...');
       const validationResult = validateTLEContent(content);
       if (!validationResult.isValid) {
-        const error = createError(
-          TLEImportErrorType.TLE_VALIDATION_ERROR,
-          undefined,
-          validationResult.error || 'TLE内容验证失败'
-        );
-        setUploadError(error);
+        const errorMsg = validationResult.error || 'TLE内容验证失败';
+        setUploadError(errorMsg);
+        console.error('TLE内容验证失败:', errorMsg);
         return;
       }
+      console.log('TLE内容验证通过');
 
-      // 4. 解析TLE数据
-      const parseResult = handleError(
-        () => parseTLEContent(content),
-        TLEImportErrorType.PARSE_ERROR,
-        '解析TLE数据失败'
-      );
-
-      if (!parseResult.success || !parseResult.result || parseResult.result.length === 0) {
-        const error = createError(
-          TLEImportErrorType.PARSE_ERROR,
-          '解析TLE数据失败，无法提取有效卫星数据'
-        );
-        setUploadError(error);
+      // 3. 解析TLE数据
+      console.log('解析TLE数据...');
+      const parsedSatellites = parseTLEContent(content);
+      if (!parsedSatellites || parsedSatellites.length === 0) {
+        const errorMsg = '解析TLE数据失败，无法提取有效卫星数据';
+        setUploadError(errorMsg);
+        console.error(errorMsg);
         return;
       }
+      console.log(`解析成功，共 ${parsedSatellites.length} 颗卫星`);
 
-      // 5. 转换为SatelliteTLE格式并处理卫星组
-      try {
-        const parsedTles = parseResult.result;
-        const satelliteTles: SatelliteTLE[] = parsedTles.map(tle => ({
-          name: tle.name,
-          satId: tle.noradId || tle.satId, // 使用satId字段，优先使用noradId作为值
-          line1: tle.line1,
-          line2: tle.line2,
-          updatedAt: new Date(),
-          id: tle.noradId || tle.satId
-        }));
+      // 4. 转换为SatelliteTLE格式并更新卫星组
+      console.log('转换为SatelliteTLE格式...');
+      const satelliteTles: SatelliteTLE[] = parsedSatellites.map(tle => ({
+        name: tle.name,
+        satId: tle.noradId || tle.satId,
+        line1: tle.line1,
+        line2: tle.line2,
+        updatedAt: new Date(),
+        id: tle.noradId || tle.satId
+      }));
+      console.log('格式转换完成');
 
-        if (selectedGroupId === 'new') {
-          // 创建新组
-          if (!newGroupName.trim()) {
-            throw new Error('请输入新卫星组名称');
-          }
+      // 更新现有组，默认使用合并模式
+      console.log('更新卫星组...');
+      const updatedGroups = await updateSatelliteGroup({
+        groupId: selectedGroupId,
+        tles: satelliteTles,
+        merge: true
+      });
+      console.log('卫星组更新成功');
 
-          const newGroup = await createSatelliteGroup(newGroupName.trim(), satelliteTles);
-          setUploadSuccess(`成功创建新卫星组 "${newGroup.name}"，包含 ${satelliteTles.length} 颗卫星`);
+      // 获取更新后的目标组
+      const targetGroup = updatedGroups.find(g => g.id === selectedGroupId);
+      const successMsg = `成功更新卫星组 "${targetGroup?.name || '未知'}"，处理了 ${satelliteTles.length} 颗卫星`;
+      setUploadSuccess(successMsg);
+      console.log(successMsg);
 
-          // 重新加载卫星组列表
-          const updatedGroups = await fetchSatelliteGroups();
-          setSatelliteGroups(updatedGroups);
-
-          // 通知父组件卫星组已更新
-          if (onSatelliteGroupUpdated) {
-            onSatelliteGroupUpdated(newGroup.id, satelliteTles.length);
-          }
-        }
-
-        else {
-          // 更新现有组
-          await updateSatelliteGroup({
-            groupId: selectedGroupId,
-            tles: satelliteTles,
-            merge: updateMode === 'merge'
-          });
-          const updatedGroups = await fetchSatelliteGroups();
-          setSatelliteGroups(updatedGroups);
-          const targetGroup = updatedGroups.find(g => g.id === selectedGroupId);
-          const operation = updateMode === 'merge' ? '合并' : '替换';
-          setUploadSuccess(`成功${operation}卫星组 "${targetGroup?.name || '未知'}"，更新了 ${satelliteTles.length} 颗卫星`);
-
-          // 通知父组件卫星组已更新
-          if (onSatelliteGroupUpdated) {
-            onSatelliteGroupUpdated(selectedGroupId, satelliteTles.length);
-          }
-        }
-      } catch (groupError) {
-        const error = createError(
-          TLEImportErrorType.UNKNOWN_ERROR,
-          undefined,
-          `处理卫星组时出错: ${groupError instanceof Error ? groupError.message : '未知错误'}`
-        );
-        setUploadError(error);
-        return;
+      // 通知父组件卫星组已更新
+      if (onSatelliteGroupUpdated) {
+        onSatelliteGroupUpdated(selectedGroupId, satelliteTles.length);
+        console.log('通知父组件卫星组已更新');
       }
 
-      // 6. 调用上传回调
-      onFileUpload(file, content, parseResult.result);
+      // 调用上传回调
+      onFileUpload(file, content, parsedSatellites);
+      console.log('上传回调调用完成');
 
     } catch (error) {
-      const fileReadError = createError(
-        TLEImportErrorType.FILE_READ_ERROR,
-        undefined,
-        error instanceof Error ? error.message : '未知错误'
-      );
-      setUploadError(fileReadError);
+      console.error('文件上传失败:', error);
+      setUploadError(error instanceof Error ? error.message : '未知错误');
     }
   };
 
   const handleclick = () => {
     if (fileInputRef.current) {
+      console.log('用户点击了选择文件按钮');
       fileInputRef.current.click();
     }
   };
@@ -254,6 +191,7 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
 
     const file = e.dataTransfer.files[0];
     if (file) {
+      console.log('用户拖放了文件:', file.name);
       processFile(file);
     }
   };
@@ -275,41 +213,24 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
           <div className="space-y-3">
             <select
               value={selectedGroupId}
-              onChange={(e) => setSelectedGroupId(e.target.value)}
+              onChange={(e) => {
+                setSelectedGroupId(e.target.value);
+                console.log('用户选择了卫星组:', e.target.value);
+              }}
               className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              disabled={disabled}
+              disabled={disabled || satelliteGroups.length === 0}
             >
-              <option value="new">创建新卫星组</option>
-              {satelliteGroups.map(group => (
-                <option key={group.id} value={group.id}>{group.name}</option>
-              ))}
+              {satelliteGroups.length === 0 ? (
+                <option value="">加载中...</option>
+              ) : (
+                satelliteGroups.map(group => (
+                  <option key={group.id} value={group.id}>{group.name}</option>
+                ))
+              )}
             </select>
-
-            {selectedGroupId === 'new' && (
-              <input
-                type="text"
-                placeholder="输入新卫星组名称"
-                value={newGroupName}
-                onChange={(e) => setNewGroupName(e.target.value)}
-                disabled={disabled}
-                className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              />
-            )}
-
-            {selectedGroupId !== 'new' && (
-              <div className="space-y-2">
-                <p className="text-sm text-slate-400">更新模式</p>
-                <select
-                  value={updateMode}
-                  onChange={(e) => setUpdateMode(e.target.value as 'merge' | 'replace')}
-                  className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  disabled={disabled}
-                >
-                  <option value="merge">合并（保留现有数据，添加或更新卫星）</option>
-                  <option value="replace">替换（完全替换组内所有卫星）</option>
-                </select>
-              </div>
-            )}
+            <p className="text-xs text-slate-500">
+              选择要更新的卫星组，上传的TLE数据将合并到该组中
+            </p>
           </div>
         </div>
 
@@ -334,7 +255,7 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
             </div>
             <h3 className="text-lg font-medium mb-2">点击或拖拽TLE文件到此区域上传</h3>
             <p className="text-sm text-slate-400">
-              支持 .tle 和 .txt 格式文件，最大文件大小 10MB
+              支持 .tle 和 .txt 格式文件
             </p>
           </div>
         </div>
@@ -343,10 +264,10 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
         <div className="flex justify-center">
           <button
             onClick={disabled ? undefined : handleclick}
-            disabled={disabled}
+            disabled={disabled || satelliteGroups.length === 0}
             className={`
               flex items-center gap-2 px-6 py-2.5 rounded-md font-medium transition-colors
-              ${disabled
+              ${disabled || satelliteGroups.length === 0
                 ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
                 : 'bg-cyan-500 hover:bg-cyan-600 text-white'}
             `}
@@ -366,7 +287,10 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
               <div className="flex justify-between items-start">
                 <h4 className="font-medium text-green-400">成功</h4>
                 <button
-                  onClick={() => setUploadSuccess(null)}
+                  onClick={() => {
+                    setUploadSuccess(null);
+                    console.log('用户关闭了成功消息');
+                  }}
                   className="text-slate-400 hover:text-white transition-colors"
                 >
                   <X size={16} />
@@ -379,21 +303,22 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
 
         {/* Error message */}
         {uploadError && (
-          <div className={`bg-red-900/30 border rounded-lg p-4 flex items-start gap-3 ${getErrorClassName(uploadError.severity)}`}>
+          <div className="bg-red-900/30 border border-red-700/50 rounded-lg p-4 flex items-start gap-3">
             <AlertCircle size={20} className="text-red-500 mt-0.5 flex-shrink-0" />
             <div className="flex-1">
               <div className="flex justify-between items-start">
-                <h4 className="font-medium text-red-400">{uploadError.message}</h4>
+                <h4 className="font-medium text-red-400">错误</h4>
                 <button
-                  onClick={() => setUploadError(null)}
+                  onClick={() => {
+                    setUploadError(null);
+                    console.log('用户关闭了错误消息');
+                  }}
                   className="text-slate-400 hover:text-white transition-colors"
                 >
                   <X size={16} />
                 </button>
               </div>
-              {uploadError.details && (
-                <p className="text-sm text-red-300 mt-1">{uploadError.details}</p>
-              )}
+              <p className="text-sm text-red-300 mt-1">{uploadError}</p>
             </div>
           </div>
         )}

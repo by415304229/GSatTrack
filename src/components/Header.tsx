@@ -97,7 +97,7 @@ const Header: React.FC<HeaderProps> = ({
           className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 rounded border border-slate-700 text-[10px] font-bold transition-colors flex items-center gap-1.5"
         >
           <Settings size={12} />
-          SETTINGS
+          设置
         </button>
         <button
           onClick={onTLEImportOpen}

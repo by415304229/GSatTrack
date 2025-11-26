@@ -16,8 +16,8 @@ const HomePage: React.FC = () => {
         loading,
         setActiveGroups,
         toggleSatellite,
-        importSatelliteGroup,
-        refreshGroups
+        refreshGroups,
+        onSatellitePropertyChange
     } = useSatelliteManager();
 
     const [stations, setStations] = useState<Array<{
@@ -81,14 +81,13 @@ const HomePage: React.FC = () => {
     };
 
     const handleTLEImport = (file: File, content: string, parsedSatellites: any[]) => {
-        importSatelliteGroup(file, content, parsedSatellites);
+        // TLEFileUpload已经处理了卫星组的更新，这里只需要关闭模态框
         setShowTLEImport(false);
     };
 
     const handleSatelliteGroupUpdated = (groupId: string, satelliteCount: number) => {
-        if (activeGroups.includes(groupId)) {
-            refreshGroups();
-        }
+        // 无论卫星组是否活动，都刷新卫星组数据，确保界面更新
+        refreshGroups();
     };
 
     return (
@@ -130,7 +129,11 @@ const HomePage: React.FC = () => {
                 orbitWindowMinutes={orbitWindowMinutes}
                 onOrbitWindowChange={setOrbitWindowMinutes}
                 selectedSatellites={selectedSatellites}
-                availableSatellites={groups.flatMap(group => group.tles || []).map(tle => ({ id: tle.satId, name: tle.name }))}
+                availableSatellites={groups.flatMap(group => group.tles || []).map(tle => ({
+                    id: tle.satId,
+                    name: tle.name,
+                    displayName: tle.displayName
+                }))}
                 onSatelliteToggle={(satId) => {
                     const newSelection = new Set(selectedSatellites);
                     if (newSelection.has(satId)) {
@@ -141,6 +144,7 @@ const HomePage: React.FC = () => {
                     // 使用toggleSatellite方法替代直接设置
                     toggleSatellite(satId);
                 }}
+                onSatellitePropertyChange={onSatellitePropertyChange}
             />
 
             <TLEImportModal

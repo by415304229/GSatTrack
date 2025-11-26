@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { getSatelliteDisplayName, updateMapping } from '../services/NamingMappingService';
 import { fetchSatelliteGroups } from '../services/satelliteService';
 
 interface TLE {
@@ -6,6 +7,7 @@ interface TLE {
   satId: string;
   line1: string;
   line2: string;
+  displayName?: string;
 }
 
 interface OrbitalPlaneGroup {
@@ -22,7 +24,7 @@ interface SatelliteManagerResult {
   loading: boolean;
   setActiveGroups: (groups: string[]) => void;
   toggleSatellite: (satId: string) => void;
-  importSatelliteGroup: (file: File, content: string, parsedSatellites: any[]) => void;
+  onSatellitePropertyChange: (satId: string, property: string, value: any) => void;
   refreshGroups: () => Promise<void>;
 }
 
@@ -31,16 +33,61 @@ const useSatelliteManager = (): SatelliteManagerResult => {
   const [loading, setLoading] = useState(true);
   const [activeGroups, setActiveGroups] = useState<string[]>([]);
   const [selectedSatellites, setSelectedSatellites] = useState<Set<string>>(new Set());
+  const displayNameCache = useRef<Map<string, string>>(new Map());
 
   // 加载卫星组数据
   const loadGroups = async () => {
     setLoading(true);
     try {
       const data = await fetchSatelliteGroups();
-      setGroups(data);
-      if (data.length > 0 && activeGroups.length === 0) {
-        setActiveGroups([data[0].id]);
+
+      // 为每个卫星获取显示名称
+      const groupsWithDisplayNames = await Promise.all(
+        data.map(async (group) => {
+          const tlesWithDisplayNames = await Promise.all(
+            group.tles.map(async (tle) => {
+              // 检查缓存
+              if (displayNameCache.current.has(tle.satId)) {
+                return {
+                  ...tle,
+                  displayName: displayNameCache.current.get(tle.satId)
+                };
+              }
+
+              // 获取显示名称
+              const displayName = await getSatelliteDisplayName(tle.satId, tle.name);
+
+              // 更新缓存
+              displayNameCache.current.set(tle.satId, displayName);
+
+              return {
+                ...tle,
+                displayName
+              };
+            })
+          );
+
+          return {
+            ...group,
+            tles: tlesWithDisplayNames
+          };
+        })
+      );
+
+      setGroups(groupsWithDisplayNames);
+
+      if (groupsWithDisplayNames.length > 0 && activeGroups.length === 0) {
+        setActiveGroups([groupsWithDisplayNames[0].id]);
       }
+
+      // 初始化选中所有卫星
+      const allSatIds = new Set<string>();
+      groupsWithDisplayNames.forEach(group => {
+        group.tles.forEach(tle => {
+          allSatIds.add(tle.satId);
+        });
+      });
+      setSelectedSatellites(allSatIds);
     } catch (error) {
       console.error('加载卫星组失败:', error);
     } finally {
@@ -66,30 +113,32 @@ const useSatelliteManager = (): SatelliteManagerResult => {
     });
   };
 
-  // 导入卫星组
-  const importSatelliteGroup = (file: File, content: string, parsedSatellites: any[]) => {
-    if (!parsedSatellites || parsedSatellites.length === 0) {
-      return;
+  // 处理卫星属性变更
+  const onSatellitePropertyChange = async (satId: string, property: string, value: any) => {
+    if (property === 'displayName') {
+      // 更新命名映射
+      await updateMapping(satId, value, '');
+
+      // 更新缓存
+      displayNameCache.current.set(satId, value);
+
+      // 更新组数据中的显示名称
+      setGroups(prev => prev.map(group => ({
+        ...group,
+        tles: group.tles.map(tle => {
+          if (tle.satId === satId) {
+            return {
+              ...tle,
+              displayName: value
+            };
+          }
+          return tle;
+        })
+      })));
     }
-
-    const groupName = file.name.replace('.txt', '').replace('.tle', '');
-    const newGroupId = `imported-${Date.now()}`;
-
-    const newGroup: OrbitalPlaneGroup = {
-      id: newGroupId,
-      name: groupName || '导入卫星组',
-      description: `导入的卫星组 - ${groupName || '未命名组'}`,
-      tles: parsedSatellites.map(sat => ({
-        name: sat.name,
-        satId: sat.satId,
-        line1: sat.line1,
-        line2: sat.line2
-      }))
-    };
-
-    setGroups(prev => [...prev, newGroup]);
-    setActiveGroups([newGroupId]);
   };
+
+
 
   // 刷新卫星组
   const refreshGroups = async () => {
@@ -103,7 +152,7 @@ const useSatelliteManager = (): SatelliteManagerResult => {
     loading,
     setActiveGroups,
     toggleSatellite,
-    importSatelliteGroup,
+    onSatellitePropertyChange,
     refreshGroups
   };
 };

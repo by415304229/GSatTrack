@@ -295,27 +295,79 @@ const OrbitLine: React.FC<{ path: { x: number, y: number, z: number }[], color: 
 
 const Earth3D: React.FC<earthprops> = ({ satellites, groundStations, onSatClick, simulatedTime = new Date(), isTracking = false, trackedSatellite = null }) => {
   const [hoverData, setHoverData] = useState<hoverdata | null>(null);
-  const { camera, gl } = useThree();
 
   // Calculate sun position based on simulated time
   const sunPosition = useMemo(() => {
     return calculateSunPosition(simulatedTime);
   }, [simulatedTime]);
 
-  // Camera follow logic
-  useFrame(() => {
-    if (isTracking && trackedSatellite && camera) {
-      // Calculate target position - keep camera at a fixed distance from the satellite
-      const targetPosition = new THREE.Vector3(trackedSatellite.x, trackedSatellite.y, trackedSatellite.z);
-      const cameraOffset = new THREE.Vector3(0, 0, 1.5); // Fixed distance behind the satellite
-
-      // Smoothly interpolate camera position
-      camera.position.lerp(targetPosition.clone().add(cameraOffset), 0.1);
-
-      // Make camera look at the satellite
-      camera.lookAt(targetPosition);
-    }
-  });
+  // Camera follow component - must be inside Canvas
+  const CameraFollow = () => {
+    const { camera } = useThree();
+    
+    useFrame(() => {
+      try {
+        if (isTracking && trackedSatellite && camera) {
+          // Comprehensive check for valid trackedSatellite object
+          if (!trackedSatellite || typeof trackedSatellite !== 'object') {
+            return;
+          }
+          
+          // Check if trackedSatellite has required position properties
+          if (typeof trackedSatellite.x !== 'number' || typeof trackedSatellite.y !== 'number' || typeof trackedSatellite.z !== 'number') {
+            return;
+          }
+          
+          // Check if trackedSatellite has valid position data
+          if (isNaN(trackedSatellite.x) || isNaN(trackedSatellite.y) || isNaN(trackedSatellite.z)) {
+            return;
+          }
+          
+          // Check if position values are within reasonable bounds
+          const maxPosition = 10; // Arbitrary reasonable bound
+          if (Math.abs(trackedSatellite.x) > maxPosition || 
+              Math.abs(trackedSatellite.y) > maxPosition || 
+              Math.abs(trackedSatellite.z) > maxPosition) {
+            return;
+          }
+          
+          // Calculate target position - keep camera at a fixed distance from the satellite
+          const targetPosition = new THREE.Vector3(trackedSatellite.x, trackedSatellite.y, trackedSatellite.z);
+          const cameraOffset = new THREE.Vector3(0, 0, 1.5); // Fixed distance behind the satellite
+          
+          // Calculate final camera target position
+          const finalTargetPosition = targetPosition.clone().add(cameraOffset);
+          
+          // Ensure final target position is valid
+          if (isNaN(finalTargetPosition.x) || isNaN(finalTargetPosition.y) || isNaN(finalTargetPosition.z)) {
+            return;
+          }
+          
+          // Smoothly interpolate camera position
+          camera.position.lerp(finalTargetPosition, 0.1);
+          
+          // Ensure camera position remains valid
+          if (isNaN(camera.position.x) || isNaN(camera.position.y) || isNaN(camera.position.z)) {
+            // Reset camera position if it becomes invalid
+            camera.position.set(0, 0, 2.5);
+            return;
+          }
+          
+          // Make camera look at the satellite
+          camera.lookAt(targetPosition);
+        }
+      } catch (error) {
+        console.warn('Camera follow error:', error);
+        // Reset tracking state if an error occurs
+        if (isTracking) {
+          // Note: We can't directly call setIsTracking here since it's from the parent component
+          // Instead, we'll just stop the camera follow logic for this frame
+        }
+      }
+    });
+    
+    return null;
+  };
 
   return (
     <div className="w-full h-full relative">
@@ -366,6 +418,9 @@ const Earth3D: React.FC<earthprops> = ({ satellites, groundStations, onSatClick,
           rotateSpeed={0.5}
           zoomSpeed={0.8}
         />
+        
+        {/* Camera follow component - must be inside Canvas */}
+        <CameraFollow />
       </Canvas>
     </div>
   );

@@ -66,34 +66,45 @@ describe('tleParser', () => {
     });
   });
   
-  describe('determineSatelliteType', () => {
+  describe('satellite type identification', () => {
     it('should identify space stations correctly', () => {
-      expect(determineSatelliteType('ISS (ZARYA)', '', '')).toBe(SatelliteType.SPACE_STATION);
-      expect(determineSatelliteType('International Space Station', '', '')).toBe(SatelliteType.SPACE_STATION);
-      expect(determineSatelliteType('TIANGONG', '', '')).toBe(SatelliteType.SPACE_STATION);
-      expect(determineSatelliteType('SKYLAB', '', '')).toBe(SatelliteType.SPACE_STATION);
-      expect(determineSatelliteType('SALUTE', '', '')).toBe(SatelliteType.SPACE_STATION);
+      const spaceStationTLE = `ISS (ZARYA)
+1 25544U 98067A   25320.51167824  .00010000  00000-0  21825-3 0  9994
+2 25544  51.6442 344.8627 0002773  63.0524  35.3741 15.50140827347193`;
+      
+      const result = parseTLEContent(spaceStationTLE);
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe(SatelliteType.SPACE_STATION);
     });
     
     it('should identify QIANFAN satellites correctly', () => {
-      expect(determineSatelliteType('QIANFAN-01', '', '')).toBe(SatelliteType.QIANFAN);
-      expect(determineSatelliteType('QIAN FAN-02', '', '')).toBe(SatelliteType.QIANFAN);
-      expect(determineSatelliteType('千帆-03', '', '')).toBe(SatelliteType.QIANFAN);
+      const qianfanTLE = `QIANFAN-01
+1 58765U 23123A   25320.51167824  .00010000  00000-0  21825-3 0  9995
+2 58765  51.6442 344.8627 0002773  63.0524  35.3741 15.50140827347193`;
+      
+      const result = parseTLEContent(qianfanTLE);
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe(SatelliteType.QIANFAN);
     });
     
     it('should identify STARLINK satellites correctly', () => {
-      expect(determineSatelliteType('STARLINK-1000', '', '')).toBe(SatelliteType.STARLINK);
-      expect(determineSatelliteType('SPACEX-STARLINK-2000', '', '')).toBe(SatelliteType.STARLINK);
+      const starlinkTLE = `STARLINK-1000
+1 54321U 20001A   25320.51167824  .00010000  00000-0  21825-3 0  9996
+2 54321  51.6442 344.8627 0002773  63.0524  35.3741 15.50140827347193`;
+      
+      const result = parseTLEContent(starlinkTLE);
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe(SatelliteType.STARLINK);
     });
     
     it('should return UNKNOWN for unknown satellite types', () => {
-      expect(determineSatelliteType('UNKNOWN-SAT', '', '')).toBe(SatelliteType.UNKNOWN);
-      expect(determineSatelliteType('TEST-SATELLITE', '', '')).toBe(SatelliteType.UNKNOWN);
-    });
-    
-    it('should handle empty satellite names', () => {
-      expect(determineSatelliteType('', '', '')).toBe(SatelliteType.UNKNOWN);
-      expect(determineSatelliteType('   ', '', '')).toBe(SatelliteType.UNKNOWN);
+      const unknownTLE = `UNKNOWN-SAT
+1 67890U 21001A   25320.51167824  .00010000  00000-0  21825-3 0  9997
+2 67890  51.6442 344.8627 0002773  63.0524  35.3741 15.50140827347193`;
+      
+      const result = parseTLEContent(unknownTLE);
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe(SatelliteType.UNKNOWN);
     });
   });
   

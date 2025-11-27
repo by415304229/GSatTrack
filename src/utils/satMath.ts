@@ -117,101 +117,124 @@ export const calculateTerminatorCoordinates = (time: Date, width: number, height
 
 
 export const getSatellitePosition = (tle: TLEData, date: Date): { id: string; name: string; x: number; y: number; z: number; lat: number; lon: number; alt: number; velocity: number; orbitPath?: { x: number, y: number, z: number, lat: number, lon: number }[]; color?: string; tle?: TLEData } | null => {
-  const satrec = satellite.twoline2satrec(tle.line1, tle.line2);
+  try {
+    const satrec = satellite.twoline2satrec(tle.line1, tle.line2);
 
-  // Propagate
-  const positionAndVelocity = satellite.propagate(satrec, date);
+    // Propagate
+    const positionAndVelocity = satellite.propagate(satrec, date);
 
-  if (!positionAndVelocity.position || typeof positionAndVelocity.position === 'boolean') {
+    if (!positionAndVelocity.position || typeof positionAndVelocity.position === 'boolean') {
+      return null;
+    }
+
+    const positionEci = positionAndVelocity.position as satellite.EciVec3<number>;
+    const velocityEci = positionAndVelocity.velocity as satellite.EciVec3<number>;
+
+    // GMST for coordinate conversion
+    const gmst = satellite.gstime(date);
+
+    // ECI -> ECEF (Earth Centered, Earth Fixed)
+    const positionEcf = satellite.eciToEcf(positionEci, gmst);
+    const positionGd = satellite.eciToGeodetic(positionEci, gmst);
+
+    const scale = 1 / EARTH_RADIUS_KM;
+
+    // Apply Coordinate Mapping
+    const scenePos = mapEcefToScene(positionEcf, scale);
+
+    const longitude = satellite.degreesLong(positionGd.longitude);
+    const latitude = satellite.degreesLat(positionGd.latitude);
+    const height = positionGd.height;
+
+    const v = Math.sqrt(velocityEci.x ** 2 + velocityEci.y ** 2 + velocityEci.z ** 2);
+
+    // Check if any of the critical values are NaN
+    if (isNaN(scenePos.x) || isNaN(scenePos.y) || isNaN(scenePos.z) ||
+      isNaN(latitude) || isNaN(longitude) || isNaN(height)) {
+      return null;
+    }
+
+    return {
+      id: tle.satId,
+      name: tle.name,
+      x: scenePos.x,
+      y: scenePos.y,
+      z: scenePos.z,
+      lat: latitude,
+      lon: longitude,
+      alt: height,
+      velocity: v,
+      tle: tle
+    };
+  } catch (error) {
     return null;
   }
-
-  const positionEci = positionAndVelocity.position as satellite.EciVec3<number>;
-  const velocityEci = positionAndVelocity.velocity as satellite.EciVec3<number>;
-
-  // GMST for coordinate conversion
-  const gmst = satellite.gstime(date);
-
-  // ECI -> ECEF (Earth Centered, Earth Fixed)
-  const positionEcf = satellite.eciToEcf(positionEci, gmst);
-  const positionGd = satellite.eciToGeodetic(positionEci, gmst);
-
-  const scale = 1 / EARTH_RADIUS_KM;
-
-  // Apply Coordinate Mapping
-  const scenePos = mapEcefToScene(positionEcf, scale);
-
-  const longitude = satellite.degreesLong(positionGd.longitude);
-  const latitude = satellite.degreesLat(positionGd.latitude);
-  const height = positionGd.height;
-
-  const v = Math.sqrt(velocityEci.x ** 2 + velocityEci.y ** 2 + velocityEci.z ** 2);
-
-  return {
-    id: tle.satId,
-    name: tle.name,
-    x: scenePos.x,
-    y: scenePos.y,
-    z: scenePos.z,
-    lat: latitude,
-    lon: longitude,
-    alt: height,
-    velocity: v,
-    tle: tle
-  };
 };
 
 // Calculates the Ground Track (ECEF path accounting for Earth rotation)
 export const calculateOrbitPath = (tle: TLEData, startTime: Date = new Date(), orbitWindowMinutes: number = 24): { x: number, y: number, z: number, lat: number, lon: number }[] => {
-  const satrec = satellite.twoline2satrec(tle.line1, tle.line2);
-  const points: { x: number, y: number, z: number, lat: number, lon: number }[] = [];
+  try {
+    const satrec = satellite.twoline2satrec(tle.line1, tle.line2);
+    const points: { x: number, y: number, z: number, lat: number, lon: number }[] = [];
 
-  const scale = 1 / EARTH_RADIUS_KM;
-
-  // 1. Calculate Exact Period
-  let periodMinutes = 95;
-  if (satrec.no && satrec.no > 0) {
-    periodMinutes = (2 * Math.PI) / satrec.no;
-  }
-
-  // 2. Start from current time
-  // Use the specified orbit window time instead of fixed 1/4 period
-  const startOffsetMinutes = 0;
-  const totalMinutes = Math.min(orbitWindowMinutes, periodMinutes / 2); // Limit to half orbit max
-
-  // Calculate steps based on orbit window (more steps for longer windows)
-  const steps = Math.max(180, Math.min(360, Math.floor(totalMinutes * 15))); // ~15 steps per minute
-
-  for (let i = 0; i <= steps; i++) {
-    const fraction = i / steps;
-    const minutesFromCenter = startOffsetMinutes + (fraction * totalMinutes);
-    const timeOffsetMs = minutesFromCenter * 60000;
-
-    const t = new Date(startTime.getTime() + timeOffsetMs);
-
-    const pv = satellite.propagate(satrec, t);
-
-    if (pv.position && typeof pv.position !== 'boolean') {
-      const pEci = pv.position as satellite.EciVec3<number>;
-
-      const gmstAtTime = satellite.gstime(t);
-
-      // 1. ECEF for 3D
-      const pEcf = satellite.eciToEcf(pEci, gmstAtTime);
-      const scenePos = mapEcefToScene(pEcf, scale);
-
-      // 2. Geodetic for 2D
-      const pGd = satellite.eciToGeodetic(pEci, gmstAtTime);
-
-      points.push({
-        x: scenePos.x,
-        y: scenePos.y,
-        z: scenePos.z,
-        lat: satellite.degreesLat(pGd.latitude),
-        lon: satellite.degreesLong(pGd.longitude)
-      });
+    // Check if satrec is valid
+    if (!satrec || !satrec.no || isNaN(satrec.no)) {
+      return [];
     }
-  }
 
-  return points;
+    const scale = 1 / EARTH_RADIUS_KM;
+
+    // 1. Calculate Exact Period
+    let periodMinutes = 95;
+    if (satrec.no > 0) {
+      periodMinutes = (2 * Math.PI) / satrec.no;
+    }
+
+    // 2. Start from current time
+    // Use the specified orbit window time instead of fixed 1/4 period
+    const startOffsetMinutes = 0;
+    const totalMinutes = Math.min(orbitWindowMinutes, periodMinutes / 2); // Limit to half orbit max
+
+    // Calculate steps based on orbit window (more steps for longer windows)
+    const steps = Math.max(180, Math.min(360, Math.floor(totalMinutes * 15))); // ~15 steps per minute
+
+    for (let i = 0; i <= steps; i++) {
+      const fraction = i / steps;
+      const minutesFromCenter = startOffsetMinutes + (fraction * totalMinutes);
+      const timeOffsetMs = minutesFromCenter * 60000;
+
+      const t = new Date(startTime.getTime() + timeOffsetMs);
+
+      const pv = satellite.propagate(satrec, t);
+
+      if (pv.position && typeof pv.position !== 'boolean') {
+        const pEci = pv.position as satellite.EciVec3<number>;
+
+        const gmstAtTime = satellite.gstime(t);
+
+        // 1. ECEF for 3D
+        const pEcf = satellite.eciToEcf(pEci, gmstAtTime);
+        const scenePos = mapEcefToScene(pEcf, scale);
+
+        // 2. Geodetic for 2D
+        const pGd = satellite.eciToGeodetic(pEci, gmstAtTime);
+
+        // Check if the calculated position is valid (not NaN)
+        if (!isNaN(scenePos.x) && !isNaN(scenePos.y) && !isNaN(scenePos.z) &&
+          !isNaN(pGd.latitude) && !isNaN(pGd.longitude)) {
+          points.push({
+            x: scenePos.x,
+            y: scenePos.y,
+            z: scenePos.z,
+            lat: satellite.degreesLat(pGd.latitude),
+            lon: satellite.degreesLong(pGd.longitude)
+          });
+        }
+      }
+    }
+
+    return points;
+  } catch (error) {
+    return [];
+  }
 }

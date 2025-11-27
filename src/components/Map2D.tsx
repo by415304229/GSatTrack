@@ -125,15 +125,20 @@ const Map2D: React.FC<map2dprops> = ({ satellites, groundStations, onSatClick, s
 
             // Calculate and draw terminator line (day/night boundary)
             const terminatorPoints = calculateTerminatorCoordinates(simulatedTime, w, h);
-
+            
             if (terminatorPoints.length > 0) {
-                // Draw night overlay
-                ctx.globalAlpha = 0.4;
-                ctx.fillStyle = '#000000';
-
+                // Create a gradient for smooth day-night transition
+                const gradient = ctx.createLinearGradient(0, 0, w, h);
+                gradient.addColorStop(0, 'rgba(0, 0, 0, 0.3)');
+                gradient.addColorStop(0.5, 'rgba(0, 0, 0, 0.4)');
+                gradient.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
+                
+                // Draw night overlay with smooth transition
+                ctx.globalAlpha = 0.8;
+                
                 // Create a closed path for the night area
                 ctx.beginPath();
-
+                
                 // Start from the top-left corner
                 ctx.moveTo(0, 0);
                 // Go to the top-right corner
@@ -144,28 +149,38 @@ const Map2D: React.FC<map2dprops> = ({ satellites, groundStations, onSatClick, s
                 ctx.lineTo(0, h);
                 // Go back to the top-left corner to close the rectangle
                 ctx.lineTo(0, 0);
-
+                
                 // Now draw the terminator line in the opposite direction to create a hole for the day area
                 ctx.moveTo(terminatorPoints[0].x, terminatorPoints[0].y);
                 for (let i = terminatorPoints.length - 1; i >= 0; i--) {
                     ctx.lineTo(terminatorPoints[i].x, terminatorPoints[i].y);
                 }
-
+                
                 ctx.closePath();
+                ctx.fillStyle = '#000000';
                 ctx.fill();
                 ctx.globalAlpha = 1.0;
-
-                // Draw terminator line
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-                ctx.lineWidth = 1.5;
+                
+                // Draw terminator line with glow effect
+                ctx.save();
+                
+                // Add glow effect
+                ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
+                ctx.shadowBlur = 10;
+                
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.lineWidth = 2;
                 ctx.beginPath();
                 ctx.moveTo(terminatorPoints[0].x, terminatorPoints[0].y);
-
+                
                 for (let i = 1; i < terminatorPoints.length; i++) {
                     ctx.lineTo(terminatorPoints[i].x, terminatorPoints[i].y);
                 }
-
+                
                 ctx.stroke();
+                
+                // Reset shadow
+                ctx.restore();
             }
 
             // Grid

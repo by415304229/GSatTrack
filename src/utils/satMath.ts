@@ -42,21 +42,26 @@ export const latLonToScene = (lat: number, lon: number, radius: number = 1) => {
 // Calculates sun position based on time
 // Returns normalized direction vector in scene coordinates
 export const calculateSunPosition = (time: Date): { x: number, y: number, z: number } => {
-  // Get hours since midnight
+  // 计算一年中的天数
+  const start = new Date(time.getFullYear(), 0, 0);
+  const diff = time.getTime() - start.getTime();
+  const oneDay = 1000 * 60 * 60 * 24;
+  const n = Math.floor(diff / oneDay);
+
+  // 计算太阳赤纬（考虑季节变化）
+  const dayAngle = (2 * Math.PI * (284 + n)) / 365;
+  const delta = 23.45 * Math.sin(dayAngle); // 太阳赤纬，单位：度
+  const deltaRad = delta * Math.PI / 180;
+
+  // 计算时角
   const hours = time.getUTCHours() + time.getUTCMinutes() / 60 + time.getUTCSeconds() / 3600;
+  const hourAngle = 15 * (hours - 12); // 每小时15度，12时为0度
+  const hourAngleRad = hourAngle * Math.PI / 180;
 
-  // Calculate rotation angle based on time (24 hours = 360 degrees)
-  // This simulates Earth's rotation relative to the sun
-  const rotationAngle = (hours / 24) * 2 * Math.PI;
-
-  // Earth's axial tilt (obliquity of the ecliptic) in radians (~23.5 degrees)
-  const axialTilt = 23.5 * Math.PI / 180;
-
-  // Sun position in equatorial coordinate system
-  // Consider Earth's axial tilt for more accurate sun position
-  const sunEcefX = Math.cos(rotationAngle);
-  const sunEcefY = Math.sin(rotationAngle);
-  const sunEcefZ = Math.sin(axialTilt); // Account for Earth's axial tilt
+  // 计算太阳在ECEF坐标系中的位置
+  const sunEcefX = Math.cos(deltaRad) * Math.cos(hourAngleRad);
+  const sunEcefY = Math.cos(deltaRad) * Math.sin(hourAngleRad);
+  const sunEcefZ = Math.sin(deltaRad);
 
   // Normalize the sun position vector
   const magnitude = Math.sqrt(sunEcefX * sunEcefX + sunEcefY * sunEcefY + sunEcefZ * sunEcefZ);
@@ -81,7 +86,8 @@ export const calculateTerminatorCoordinates = (time: Date, width: number, height
   const sunPos = calculateSunPosition(time);
 
   // Calculate the subsolar point (point on Earth directly under the sun)
-  const subsolarLat = Math.asin(sunPos.y) * 180 / Math.PI;
+  const delta = Math.asin(sunPos.y) * 180 / Math.PI; // 太阳赤纬δ
+  const deltaRad = delta * Math.PI / 180;
   const hours = time.getUTCHours() + time.getUTCMinutes() / 60 + time.getUTCSeconds() / 3600;
   const subsolarLon = (hours / 24) * 360 - 180;
 
@@ -91,17 +97,16 @@ export const calculateTerminatorCoordinates = (time: Date, width: number, height
   // Generate points every 1 degree of longitude for a smooth terminator line
   for (let lon = -180; lon <= 180; lon += 1) {
     // Calculate the latitude of the terminator at this longitude
-    // Using the formula: tan(lat) = -cos(lon - subsolarLon) / tan(subsolarLat)
+    // Using the formula: tan(lat) = cos(lon - subsolarLon) / tan(subsolarLat)
     const lonDiff = (lon - subsolarLon) * Math.PI / 180;
-    const subsolarLatRad = subsolarLat * Math.PI / 180;
 
     // Calculate the terminator latitude
     let lat: number;
-    if (Math.abs(subsolarLat) === 90) {
+    if (Math.abs(delta) === 90) {
       // Special case: sun is at one of the poles
-      lat = subsolarLat > 0 ? 90 - Math.abs(lonDiff) * 180 / Math.PI : -90 + Math.abs(lonDiff) * 180 / Math.PI;
+      lat = delta > 0 ? 90 - Math.abs(lonDiff) * 180 / Math.PI : -90 + Math.abs(lonDiff) * 180 / Math.PI;
     } else {
-      const tanLat = -Math.cos(lonDiff) / Math.tan(subsolarLatRad);
+      const tanLat = Math.cos(lonDiff) / Math.tan(deltaRad);
       lat = Math.atan(tanLat) * 180 / Math.PI;
     }
 
@@ -112,7 +117,22 @@ export const calculateTerminatorCoordinates = (time: Date, width: number, height
     points.push({ x, y });
   }
 
-  return points;
+  // 判断极昼极夜情况
+  // 太阳赤纬δ > 0 时，北极附近极昼，南极附近极夜
+  // 太阳赤纬δ < 0 时，南极附近极昼，北极附近极夜
+  const isNorthPolarDay = delta > 0;
+  const isSouthPolarDay = delta < 0;
+
+  // 极圈纬度 = 90° - |δ|
+  const polarCircleLat = 90 - Math.abs(delta);
+
+  return {
+    points,
+    sunDeclination: delta, // 太阳赤纬
+    polarCircleLat, // 极圈纬度
+    isNorthPolarDay, // 北极是否极昼
+    isSouthPolarDay // 南极是否极昼
+  };
 };
 
 

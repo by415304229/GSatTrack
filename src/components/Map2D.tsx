@@ -63,10 +63,12 @@ const Map2D: React.FC<map2dprops> = ({ satellites, groundStations, onSatClick, s
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const imageRef = useRef<HTMLImageElement | null>(null);
+    const lightsImageRef = useRef<HTMLImageElement | null>(null);
     const [hoverData, setHoverData] = useState<hoverdata | null>(null);
 
-    // Load Earth Map Image
+    // Load Earth Map Images
     useEffect(() => {
+        // Load main Earth image
         const img = new Image();
         img.crossOrigin = "anonymous";
         img.src = '/data/earth_atmos_2048.jpg'; // Using local file
@@ -76,6 +78,17 @@ const Map2D: React.FC<map2dprops> = ({ satellites, groundStations, onSatClick, s
         img.onerror = (error) => {
             console.error('Failed to load Earth map image:', error);
             // 图片加载失败时，imageRef.current 保持为 null，渲染时会使用备用方案
+        };
+
+        // Load lights image for night effects
+        const lightsImg = new Image();
+        lightsImg.crossOrigin = "anonymous";
+        lightsImg.src = '/data/earth_lights_2048.png'; // Using local lights file
+        lightsImg.onload = () => {
+            lightsImageRef.current = lightsImg;
+        };
+        lightsImg.onerror = (error) => {
+            console.error('Failed to load Earth lights image:', error);
         };
     }, []);
 
@@ -124,61 +137,122 @@ const Map2D: React.FC<map2dprops> = ({ satellites, groundStations, onSatClick, s
             }
 
             // Calculate and draw terminator line (day/night boundary)
-            const terminatorPoints = calculateTerminatorCoordinates(simulatedTime, w, h);
-            
+            const terminatorResult = calculateTerminatorCoordinates(simulatedTime, w, h);
+            const { points: terminatorPoints, isNorthPolarDay, isSouthPolarDay } = terminatorResult;
+
             if (terminatorPoints.length > 0) {
-                // Create a gradient for smooth day-night transition
-                const gradient = ctx.createLinearGradient(0, 0, w, h);
-                gradient.addColorStop(0, 'rgba(0, 0, 0, 0.3)');
-                gradient.addColorStop(0.5, 'rgba(0, 0, 0, 0.4)');
-                gradient.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
-                
-                // Draw night overlay with smooth transition
-                ctx.globalAlpha = 0.8;
-                
-                // Create a closed path for the night area
-                ctx.beginPath();
-                
-                // Start from the top-left corner
-                ctx.moveTo(0, 0);
-                // Go to the top-right corner
-                ctx.lineTo(w, 0);
-                // Go to the bottom-right corner
-                ctx.lineTo(w, h);
-                // Go to the bottom-left corner
-                ctx.lineTo(0, h);
-                // Go back to the top-left corner to close the rectangle
-                ctx.lineTo(0, 0);
-                
-                // Now draw the terminator line in the opposite direction to create a hole for the day area
-                ctx.moveTo(terminatorPoints[0].x, terminatorPoints[0].y);
-                for (let i = terminatorPoints.length - 1; i >= 0; i--) {
-                    ctx.lineTo(terminatorPoints[i].x, terminatorPoints[i].y);
+                // 1. 绘制夜间区域的灯光贴图
+                if (lightsImageRef.current) {
+                    // 创建裁剪路径，只显示夜间区域的灯光
+                    ctx.save();
+
+                    // 绘制完整的夜间区域路径
+                    ctx.beginPath();
+
+                    // 处理北极极夜情况
+                    if (!isNorthPolarDay) {
+                        // 从地图左上角(0,0)开始
+                        ctx.moveTo(0, 0);
+                        // 沿顶端直线到右上角(w,0)
+                        ctx.lineTo(w, 0);
+                        // 移动到晨昏线的最东端
+                        ctx.lineTo(terminatorPoints[terminatorPoints.length - 1].x, terminatorPoints[terminatorPoints.length - 1].y);
+                        // 严格按照terminatorPoints的逆序绘制
+                        for (let i = terminatorPoints.length - 2; i >= 0; i--) {
+                            ctx.lineTo(terminatorPoints[i].x, terminatorPoints[i].y);
+                        }
+                        // 闭合路径回到左上角
+                        ctx.closePath();
+                    }
+
+                    // 处理南极极夜情况
+                    if (!isSouthPolarDay) {
+                        ctx.beginPath();
+                        // 从地图左下角(0,h)开始
+                        ctx.moveTo(0, h);
+                        // 沿底端直线到右下角(w,h)
+                        ctx.lineTo(w, h);
+                        // 移动到晨昏线的最西端
+                        ctx.lineTo(terminatorPoints[0].x, terminatorPoints[0].y);
+                        // 严格按照terminatorPoints的顺序绘制
+                        for (let i = 1; i < terminatorPoints.length; i++) {
+                            ctx.lineTo(terminatorPoints[i].x, terminatorPoints[i].y);
+                        }
+                        // 闭合路径回到左下角
+                        ctx.closePath();
+                    }
+
+                    // 设置裁剪区域
+                    ctx.clip();
+
+                    // 绘制灯光贴图，使用较低的透明度
+                    ctx.globalAlpha = 0.6;
+                    ctx.drawImage(lightsImageRef.current, 0, 0, w, h);
+                    ctx.restore();
                 }
-                
-                ctx.closePath();
-                ctx.fillStyle = '#000000';
-                ctx.fill();
+
+                // 2. 绘制夜间覆盖层，使用渐变效果增强真实感
+                ctx.globalAlpha = 0.8;
+
+                // 处理北极极夜情况
+                if (!isNorthPolarDay) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(w, 0);
+                    ctx.lineTo(terminatorPoints[terminatorPoints.length - 1].x, terminatorPoints[terminatorPoints.length - 1].y);
+                    for (let i = terminatorPoints.length - 2; i >= 0; i--) {
+                        ctx.lineTo(terminatorPoints[i].x, terminatorPoints[i].y);
+                    }
+                    ctx.closePath();
+
+                    // 添加从晨昏线到黑夜中心的渐变效果
+                    const northGradient = ctx.createLinearGradient(w / 2, 0, w / 2, h / 2);
+                    northGradient.addColorStop(0, 'rgba(0, 0, 0, 0.3)'); // 靠近顶端的较浅黑色
+                    northGradient.addColorStop(1, 'rgba(0, 0, 0, 0.6)'); // 靠近中心的较深黑色
+                    ctx.fillStyle = northGradient;
+                    ctx.fill();
+                }
+
+                // 处理南极极夜情况
+                if (!isSouthPolarDay) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, h);
+                    ctx.lineTo(w, h);
+                    ctx.lineTo(terminatorPoints[0].x, terminatorPoints[0].y);
+                    for (let i = 1; i < terminatorPoints.length; i++) {
+                        ctx.lineTo(terminatorPoints[i].x, terminatorPoints[i].y);
+                    }
+                    ctx.closePath();
+
+                    // 添加从晨昏线到黑夜中心的渐变效果
+                    const southGradient = ctx.createLinearGradient(w / 2, h, w / 2, h / 2);
+                    southGradient.addColorStop(0, 'rgba(0, 0, 0, 0.3)'); // 靠近底端的较浅黑色
+                    southGradient.addColorStop(1, 'rgba(0, 0, 0, 0.6)'); // 靠近中心的较深黑色
+                    ctx.fillStyle = southGradient;
+                    ctx.fill();
+                }
+
                 ctx.globalAlpha = 1.0;
-                
-                // Draw terminator line with glow effect
+
+                // 3. 绘制晨昏线
                 ctx.save();
-                
+
                 // Add glow effect
                 ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
                 ctx.shadowBlur = 10;
-                
+
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
+
+                // 严格按照terminatorPoints的顺序绘制完整的晨昏线
                 ctx.moveTo(terminatorPoints[0].x, terminatorPoints[0].y);
-                
                 for (let i = 1; i < terminatorPoints.length; i++) {
                     ctx.lineTo(terminatorPoints[i].x, terminatorPoints[i].y);
                 }
-                
+
                 ctx.stroke();
-                
+
                 // Reset shadow
                 ctx.restore();
             }

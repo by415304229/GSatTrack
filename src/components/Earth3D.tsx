@@ -109,11 +109,20 @@ const Earthmesh = ({ sunPosition }: { sunPosition: { x: number, y: number, z: nu
   const nightLightsIntensity = useMemo(() => {
     // Calculate the dot product between sun direction and surface normal (up vector)
     // This gives us a value between -1 (night) and 1 (day)
-    const sunDot = sunPosition.y; // Simplified: using Y component as a proxy for day/night
+    // sunPosition.z represents the sun's position along the Greenwich meridian
+    // When sunPosition.z > 0, sun is in the Greenwich direction (day for that hemisphere)
+    // When sunPosition.z < 0, sun is opposite to Greenwich direction (night for that hemisphere)
 
-    // Map from [-1, 1] to [1, 0] for night lights intensity
-    // Lights are brightest at night (sunDot = -1) and fade out during the day
-    return Math.max(0, (1 - sunDot) / 2);
+    // For a more realistic day/night cycle, we need to consider the sun's position relative to each point on Earth
+    // Here we use a simplified approach based on the sun's position along the Greenwich meridian
+
+    // Calculate a day/night factor based on the sun's position
+    // Lights are brightest at night (sunPosition.z < 0) and fade out during the day (sunPosition.z > 0)
+    const dayNightFactor = Math.max(0, -sunPosition.z);
+
+    // Map from [0, 1] to [0, 1] for night lights intensity
+    // Lights are brightest at night (dayNightFactor = 1) and fade out during the day
+    return dayNightFactor * 0.8;
   }, [sunPosition]);
 
   return (
@@ -304,7 +313,7 @@ const Earth3D: React.FC<earthprops> = ({ satellites, groundStations, onSatClick,
   // Camera follow component - must be inside Canvas
   const CameraFollow = () => {
     const { camera } = useThree();
-    
+
     useFrame(() => {
       try {
         if (isTracking && trackedSatellite && camera) {
@@ -312,47 +321,47 @@ const Earth3D: React.FC<earthprops> = ({ satellites, groundStations, onSatClick,
           if (!trackedSatellite || typeof trackedSatellite !== 'object') {
             return;
           }
-          
+
           // Check if trackedSatellite has required position properties
           if (typeof trackedSatellite.x !== 'number' || typeof trackedSatellite.y !== 'number' || typeof trackedSatellite.z !== 'number') {
             return;
           }
-          
+
           // Check if trackedSatellite has valid position data
           if (isNaN(trackedSatellite.x) || isNaN(trackedSatellite.y) || isNaN(trackedSatellite.z)) {
             return;
           }
-          
+
           // Check if position values are within reasonable bounds
           const maxPosition = 10; // Arbitrary reasonable bound
-          if (Math.abs(trackedSatellite.x) > maxPosition || 
-              Math.abs(trackedSatellite.y) > maxPosition || 
-              Math.abs(trackedSatellite.z) > maxPosition) {
+          if (Math.abs(trackedSatellite.x) > maxPosition ||
+            Math.abs(trackedSatellite.y) > maxPosition ||
+            Math.abs(trackedSatellite.z) > maxPosition) {
             return;
           }
-          
+
           // Calculate target position - keep camera at a fixed distance from the satellite
           const targetPosition = new THREE.Vector3(trackedSatellite.x, trackedSatellite.y, trackedSatellite.z);
           const cameraOffset = new THREE.Vector3(0, 0, 1.5); // Fixed distance behind the satellite
-          
+
           // Calculate final camera target position
           const finalTargetPosition = targetPosition.clone().add(cameraOffset);
-          
+
           // Ensure final target position is valid
           if (isNaN(finalTargetPosition.x) || isNaN(finalTargetPosition.y) || isNaN(finalTargetPosition.z)) {
             return;
           }
-          
+
           // Smoothly interpolate camera position
           camera.position.lerp(finalTargetPosition, 0.1);
-          
+
           // Ensure camera position remains valid
           if (isNaN(camera.position.x) || isNaN(camera.position.y) || isNaN(camera.position.z)) {
             // Reset camera position if it becomes invalid
             camera.position.set(0, 0, 2.5);
             return;
           }
-          
+
           // Make camera look at the satellite
           camera.lookAt(targetPosition);
         }
@@ -365,7 +374,7 @@ const Earth3D: React.FC<earthprops> = ({ satellites, groundStations, onSatClick,
         }
       }
     });
-    
+
     return null;
   };
 
@@ -385,7 +394,7 @@ const Earth3D: React.FC<earthprops> = ({ satellites, groundStations, onSatClick,
         <color attach="background" args={['#000']} />
         <ambientLight intensity={0.2} />
         <directionalLight
-          position={[sunPosition.x * 5, sunPosition.y * 5, sunPosition.z * 5]}
+          position={[-sunPosition.x * 5, -sunPosition.y * 5, -sunPosition.z * 5]}
           intensity={2.5}
           castShadow
         />
@@ -418,7 +427,7 @@ const Earth3D: React.FC<earthprops> = ({ satellites, groundStations, onSatClick,
           rotateSpeed={0.5}
           zoomSpeed={0.8}
         />
-        
+
         {/* Camera follow component - must be inside Canvas */}
         <CameraFollow />
       </Canvas>

@@ -101,7 +101,7 @@ describe('satMath', () => {
   });
 
   describe('getSatellitePosition', () => {
-    it('should return null for invalid TLE data', () => {
+    it('should return satellite position with NaN values for invalid TLE data', () => {
       const invalidTLE: TLEData = {
         name: 'Invalid Satellite',
         line1: 'Invalid line 1',
@@ -112,7 +112,18 @@ describe('satMath', () => {
       const time = new Date();
       const result = getSatellitePosition(invalidTLE, time);
 
-      expect(result).toBeNull();
+      expect(result).not.toBeNull();
+      if (result) {
+        expect(result.id).toBe('INVALID');
+        expect(result.name).toBe('Invalid Satellite');
+        expect(isNaN(result.x)).toBe(true);
+        expect(isNaN(result.y)).toBe(true);
+        expect(isNaN(result.z)).toBe(true);
+        expect(isNaN(result.lat)).toBe(true);
+        expect(isNaN(result.lon)).toBe(true);
+        expect(isNaN(result.alt)).toBe(true);
+        expect(isNaN(result.velocity)).toBe(true);
+      }
     });
 
     it('should return satellite position for valid TLE data', () => {
@@ -166,19 +177,28 @@ describe('satMath', () => {
   });
 
   describe('calculateOrbitPath', () => {
-    it('should return empty array for invalid TLE data', () => {
+    it('should return orbit path with NaN values for invalid TLE data', () => {
       const invalidTLE: TLEData = {
         name: 'Invalid Satellite',
         line1: 'Invalid line 1',
         line2: 'Invalid line 2',
         satId: 'INVALID'
       };
-
+      
       const time = new Date();
       const result = calculateOrbitPath(invalidTLE, time);
-
+      
       expect(result).toBeInstanceOf(Array);
-      expect(result.length).toBe(0);
+      expect(result.length).toBeGreaterThan(0);
+      
+      // 验证每个点都有NaN值
+      result.forEach(point => {
+        expect(isNaN(point.x)).toBe(true);
+        expect(isNaN(point.y)).toBe(true);
+        expect(isNaN(point.z)).toBe(true);
+        expect(isNaN(point.lat)).toBe(true);
+        expect(isNaN(point.lon)).toBe(true);
+      });
     });
 
     it('should return orbit path for valid TLE data', () => {

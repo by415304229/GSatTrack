@@ -7,7 +7,7 @@ describe('tleTimeUtils', () => {
       // TLE第一行，历元时间为2025年第320.51167824天
       const tleLine1 = '1 25544U 98067A   25320.51167824  .00010000  00000-0  21825-3 0  9994';
       const result = extractTLEEpoch(tleLine1);
-
+      
       // 验证年份是否正确
       expect(result.getFullYear()).toBe(2025);
       // 由于函数对TLE历元时间格式的解析存在问题，我们只验证年份，不验证月份和日期
@@ -78,7 +78,7 @@ describe('tleTimeUtils', () => {
     it('should format valid TLE epoch to readable string', () => {
       const tleLine1 = '1 25544U 98067A   25320.51167824  .00010000  00000-0  21825-3 0  9994';
       const result = formatTLEEpoch(tleLine1);
-
+      
       // 格式应为：YYYY-MM-DD HH:mm:ss
       expect(result).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
     });

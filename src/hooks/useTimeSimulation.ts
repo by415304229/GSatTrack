@@ -29,26 +29,42 @@ export const useTimeSimulation = (options: UseTimeSimulationOptions = {}): UseTi
     const [simulatedTime, setSimulatedTime] = useState<Date>(initialTime);
     const [simulationRate, setSimulationRate] = useState<number>(initialRate);
     const [isPaused, setIsPaused] = useState<boolean>(!autoStart);
-    const lastRafTime = useRef<number>(Date.now());
-    // 添加一个 useRef 来保存当前的 simulatedTime 值，避免不必要的状态更新
-    const currentSimulatedTimeRef = useRef<Date>(initialTime);
+
+    // 使用更稳定的时间计算方式，避免时间漂移
+    const startTimeRef = useRef<number>(Date.now());
+    const lastRealTimeRef = useRef<number>(Date.now());
+    const lastSimulatedTimeRef = useRef<Date>(initialTime);
+    const isPausedRef = useRef<boolean>(!autoStart);
+    const simulationRateRef = useRef<number>(initialRate);
+
+    // 同步状态到 ref，避免闭包问题
+    useEffect(() => {
+        isPausedRef.current = isPaused;
+    }, [isPaused]);
+
+    useEffect(() => {
+        simulationRateRef.current = simulationRate;
+    }, [simulationRate]);
 
     // 时间模拟循环 - 使用requestAnimationFrame实现平滑动画
     useEffect(() => {
         let handle: number;
         const loop = () => {
             const now = Date.now();
-            const dt = now - lastRafTime.current;
-            lastRafTime.current = now;
+            const dt = now - lastRealTimeRef.current;
+            lastRealTimeRef.current = now;
 
-            if (!isPaused) {
-                // 计算新的时间值
-                const newTime = new Date(currentSimulatedTimeRef.current.getTime() + dt * simulationRate);
-                // 检查新的时间值是否与当前值不同，只有当不同时才更新状态
-                if (newTime.getTime() !== currentSimulatedTimeRef.current.getTime()) {
+            if (!isPausedRef.current) {
+                // 计算经过的模拟时间
+                const simulatedDt = dt * simulationRateRef.current;
+
+                // 计算新的模拟时间
+                const newTime = new Date(lastSimulatedTimeRef.current.getTime() + simulatedDt);
+
+                // 只有当时间确实变化时才更新状态
+                if (newTime.getTime() !== lastSimulatedTimeRef.current.getTime()) {
                     setSimulatedTime(newTime);
-                    // 更新 useRef 中的值
-                    currentSimulatedTimeRef.current = newTime;
+                    lastSimulatedTimeRef.current = newTime;
                 }
             }
 
@@ -57,7 +73,7 @@ export const useTimeSimulation = (options: UseTimeSimulationOptions = {}): UseTi
 
         handle = requestAnimationFrame(loop);
         return () => cancelAnimationFrame(handle);
-    }, [isPaused, simulationRate]);
+    }, []);
 
     // 控制函数
     const pause = useCallback(() => {
@@ -66,13 +82,17 @@ export const useTimeSimulation = (options: UseTimeSimulationOptions = {}): UseTi
 
     const resume = useCallback(() => {
         setIsPaused(false);
+        // 重置lastRealTimeRef，避免暂停期间的时间累积
+        lastRealTimeRef.current = Date.now();
     }, []);
 
-    // 重置到实时时间，并更新 useRef
+    // 重置到实时时间
     const resetToRealTime = useCallback(() => {
         const now = new Date();
         setSimulatedTime(now);
-        currentSimulatedTimeRef.current = now;
+        lastSimulatedTimeRef.current = now;
+        // 重置lastRealTimeRef
+        lastRealTimeRef.current = Date.now();
     }, []);
 
     // 设置模拟速率
@@ -80,10 +100,12 @@ export const useTimeSimulation = (options: UseTimeSimulationOptions = {}): UseTi
         setSimulationRate(rate);
     }, []);
 
-    // 包装 setSimulatedTime，确保 useRef 也被更新
+    // 直接设置模拟时间
     const setSimulatedTimeWrapper = useCallback((time: Date) => {
         setSimulatedTime(time);
-        currentSimulatedTimeRef.current = time;
+        lastSimulatedTimeRef.current = time;
+        // 重置lastRealTimeRef
+        lastRealTimeRef.current = Date.now();
     }, []);
 
     return {

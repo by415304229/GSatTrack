@@ -74,13 +74,19 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
             }).filter(p => p !== null) as SatellitePos[];
 
         // Only update state if satellites have changed significantly
+        // 动态计算位置变化阈值 - 倍速越低，阈值越小，确保平滑更新
+        const baseThreshold = 0.001;
+        const minThreshold = 0.0001;
+        const maxThreshold = 0.005;
+        const threshold = Math.max(minThreshold, Math.min(maxThreshold, baseThreshold / Math.max(1, timeRate || 1)));
+
         const hasChanged = positions.length !== currentSatellitesRef.current.length ||
             positions.some((sat, idx) => {
                 const currentSat = currentSatellitesRef.current[idx];
                 if (!currentSat) return true;
-                // Check if position has changed significantly (threshold: 0.001 scene units)
+                // Check if position has changed significantly
                 const posDiff = Math.abs(sat.x - currentSat.x) + Math.abs(sat.y - currentSat.y) + Math.abs(sat.z - currentSat.z);
-                return posDiff > 0.001;
+                return posDiff > threshold;
             });
 
         if (hasChanged) {

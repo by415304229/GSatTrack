@@ -1,15 +1,62 @@
 {
-  "recommendations": [
-    "dbaeumer.vscode-eslint",
-    "stylelint.vscode-stylelint",
-    "ms-vscode.vscode-typescript-next",
-    "esbenp.prettier-vscode",
-    "formulahendry.auto-close-tag",
-    "formulahendry.auto-rename-tag",
-    "github.vscode-pull-request-github",
-    "eamodio.gitlens",
-    "xabikos.JavaScriptSnippets",
-    "mgmcdermott.vscode-language-babel",
-    "streetsidesoftware.code-spell-checker"
-  ]
+    // VSCode 推荐扩展配置 - GSatTrack 项目
+    // 当打开此项目时，VSCode会提示安装这些推荐的扩展
+
+    "recommendations": [
+        // ===== 核心开发工具 =====
+        "dbaeumer.vscode-eslint",              // ESLint 集成
+        "stylelint.vscode-stylelint",          // Stylelint CSS 检查
+        "ms-vscode.vscode-typescript-next",    // TypeScript 最新语法支持
+        "esbenp.prettier-vscode",              // Prettier 代码格式化
+        "formulahendry.auto-close-tag",        // 自动闭合标签
+        "formulahendry.auto-rename-tag",       // 自动重命名配对标签
+        "github.vscode-pull-request-github",   // GitHub PR 支持
+        "eamodio.gitlens",                     // Git 增强功能
+        "xabikos.JavaScriptSnippets",          // JavaScript 代码片段
+        "streetsidesoftware.code-spell-checker", // 拼写检查
+
+        // ===== React/TypeScript 增强 =====
+        "bradlc.vscode-tailwindcss",           // Tailwind CSS 智能提示
+        "ms-vscode.vscode-react-ts-snippets",  // React TypeScript 代码片段
+        "christian-kohler.path-intellisense",  // 路径智能提示
+        "christian-kohler.npm-intellisense",   // npm 模块智能提示
+        "ms-vscode.vscode-npm-scripts",        // npm 脚本管理
+        "ms-vscode.vscode-json",               // JSON 支持
+
+        // ===== 调试支持 =====
+        "ms-vscode.js-debug",                  // JavaScript 调试器
+        "ms-vscode.js-debug-nightly",          // JavaScript 调试器最新版（可选）
+        "Orta.vscode-jest",                    // Jest 测试集成
+        "ms-playwright.playwright",            // Playwright 测试支持
+
+        // ===== Three.js/WebGL 开发 =====
+        "VisualStudioExptTeam.vscodeintellicode", // AI 辅助编码
+        "sleistner.vscode-fileutils",          // 文件操作工具
+
+        // ===== 代码质量 =====
+        "sonarsource.sonarlint-vscode",        // 代码质量检查
+        "usernamehw.errorlens",                // 行内错误显示
+        "oderwat.indent-rainbow",              // 缩进彩虹显示
+        "CoenraadS.bracket-pair-colorizer",    // 括号对颜色
+
+        // ===== 实用工具 =====
+        "wayou.vscode-todo-highlight",         // TODO 高亮
+        "gruntfuggly.todo-tree",               // TODO 树状视图
+        "wix.vscode-import-cost",              // 模块导入大小分析
+        "yzhang.markdown-all-in-one",          // Markdown 全面支持
+        "shd101wyy.markdown-preview-enhanced", // 增强版 Markdown 预览
+        "humao.rest-client"                    // REST API 测试（为未来 API 开发准备）
+    ],
+
+    // 不推荐的扩展（避免冲突）
+    "unwantedRecommendations": [
+        "hookyqr.beautify",                    // 不推荐，已有 Prettier
+        "ms-vscode.vscode-typescript",         // 内置，不需要额外安装
+        "octref.vetur",                        // Vue 专用，本项目不需要
+        "ms-python.python",                    // Python 专用，本项目不需要
+        "ms-vscode.cpptools",                  // C++ 专用，本项目不需要
+        "mgmcdermott.vscode-language-babel",   // 与内置 TypeScript 支持可能冲突
+        "ms-vscode.vscode-eslint",             // 旧版本，推荐使用 dbaeumer.vscode-eslint
+        "HookyQR.beautify"                     // 重复项，已在上面定义
+    ]
 }

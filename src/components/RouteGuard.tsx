@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import authService from '../services/authService';
 
 interface RouteGuardProps {
   children: React.ReactNode;
@@ -28,10 +29,9 @@ const RouteGuard: React.FC<RouteGuardProps> = ({
 
       setIsLoading(true);
       try {
-        // 模拟权限检查
-        // 实际项目中这里应该调用真实的权限验证API
-        const hasPermission = await simulatePermissionCheck(authRequired, permissions);
-        
+        // 使用真实认证服务检查权限
+        const hasPermission = await checkRealPermission(authRequired, permissions);
+
         if (!hasPermission) {
           setIsAuthorized(false);
           // 可以重定向到登录页或无权限页
@@ -92,24 +92,30 @@ const RouteGuard: React.FC<RouteGuardProps> = ({
   return <>{children}</>;
 };
 
-// 模拟权限检查函数
-async function simulatePermissionCheck(authRequired: boolean, permissions: string[]): Promise<boolean> {
+/**
+ * 真实权限检查函数
+ * 使用 authService 进行认证和权限检查
+ */
+async function checkRealPermission(authRequired: boolean, permissions: string[]): Promise<boolean> {
   // 模拟网络延迟
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  // 模拟权限检查逻辑
+  await new Promise(resolve => setTimeout(resolve, 300));
+
+  // 检查是否已登录
   if (authRequired) {
-    // 检查是否已登录（模拟）
-    const isAuthenticated = localStorage.getItem('auth_token') !== null;
+    const isAuthenticated = authService.isAuthenticated();
     if (!isAuthenticated) {
-      return false;
+      // 尝试自动登录
+      const loginSuccess = await authService.autoLogin();
+      if (!loginSuccess) {
+        return false;
+      }
     }
   }
 
+  // 检查权限（如果需要）
   if (permissions.length > 0) {
-    // 检查用户权限（模拟）
     const userPermissions = JSON.parse(localStorage.getItem('user_permissions') || '[]');
-    const hasRequiredPermission = permissions.some(permission => 
+    const hasRequiredPermission = permissions.some(permission =>
       userPermissions.includes(permission)
     );
     if (!hasRequiredPermission) {

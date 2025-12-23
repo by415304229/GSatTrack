@@ -10,10 +10,23 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
-        allowedHosts: ['gsat.by1994.top', 'by1994.top', 'localhost', '127.0.0.1'],
+        allowedHosts: true,
         fs: {
           // 允许开发服务器访问项目根目录下的data文件夹
           allow: ['.', '../']
+        },
+        // API 代理配置（用于跨域请求）
+        proxy: {
+          '/api': {
+            target: 'http://172.24.28.5:5000',
+            changeOrigin: true,
+            secure: false,
+            ws: true,
+            // 添加调试
+            bypass(req, _res, options) {
+              console.log('[Proxy Debug]', req.method, req.url, '->', options.target);
+            }
+          }
         }
       },
       plugins: [

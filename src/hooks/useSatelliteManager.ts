@@ -39,23 +39,32 @@ const useSatelliteManager = (): SatelliteManagerResult => {
   const loadGroups = async () => {
     setLoading(true);
     try {
+      // 1. 先获取API卫星数据和映射关系
+      const { default: satelliteMappingService } = await import('../services/satelliteMappingService');
+      const apiSatellites = await satelliteMappingService.fetchAndMapSatellites();
+      const mappedNoradIds = new Set(satelliteMappingService.getMappedNoradIds());
+
+      console.log('[useSatelliteManager] API返回卫星数量:', mappedNoradIds.size);
+
+      // 2. 获取本地卫星组数据
       const data = await fetchSatelliteGroups();
 
-      // 为每个卫星获取显示名称
+      // 3. 过滤卫星：只保留API中存在的卫星
+      const filteredGroups = data.map(group => ({
+        ...group,
+        tles: group.tles.filter(tle => mappedNoradIds.has(tle.satId))
+      })).filter(group => group.tles.length > 0); // 过滤掉空组
+
+      console.log('[useSatelliteManager] 过滤后卫星组数量:', filteredGroups.length);
+
+      // 4. 为每个卫星设置显示名称（使用API的sateliteName）
       const groupsWithDisplayNames = await Promise.all(
-        data.map(async (group) => {
+        filteredGroups.map(async (group) => {
           const tlesWithDisplayNames = await Promise.all(
             group.tles.map(async (tle) => {
-              // 检查缓存
-              if (displayNameCache.current.has(tle.satId)) {
-                return {
-                  ...tle,
-                  displayName: displayNameCache.current.get(tle.satId)
-                };
-              }
-
-              // 获取显示名称
-              const displayName = await getSatelliteDisplayName(tle.satId, tle.name);
+              // 从API数据获取显示名称
+              const apiSat = satelliteMappingService.findByNoradId(tle.satId);
+              const displayName = apiSat?.sateliteName || tle.name;
 
               // 更新缓存
               displayNameCache.current.set(tle.satId, displayName);
@@ -88,6 +97,8 @@ const useSatelliteManager = (): SatelliteManagerResult => {
         });
       });
       setSelectedSatellites(allSatIds);
+
+      console.log('[useSatelliteManager] 卫星加载完成，总数:', allSatIds.size);
     } catch (error) {
       console.error('加载卫星组失败:', error);
     } finally {

@@ -14,6 +14,17 @@ interface RequestConfig {
   timeout?: number;
   skipAuth?: boolean;  // 跳过 Token 认证
   returnHeaders?: boolean;  // 是否返回响应头
+  skipRetry?: boolean;  // 跳过401自动重试
+}
+
+/**
+ * 等待队列中的请求
+ */
+interface PendingRequest {
+  resolve: (value: any) => void;
+  reject: (reason?: any) => void;
+  endpoint: string;
+  config: RequestConfig;
 }
 
 /**
@@ -31,6 +42,8 @@ class HttpClient {
   private baseURL: string;
   private defaultTimeout: number = 30000;
   private tokenManager: TokenManager;
+  private isRefreshing: boolean = false;  // 是否正在刷新token
+  private pendingRequests: PendingRequest[] = [];  // 等待队列
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
@@ -85,6 +98,12 @@ class HttpClient {
 
       // 检查响应状态
       if (!response.ok) {
+        // 处理401未授权错误
+        if (response.status === 401 && !skipAuth && !config.skipRetry) {
+          console.log('[HttpClient] 收到401响应，尝试重新认证...');
+          return this.handle401Error(endpoint, config);
+        }
+
         const errorData = await response.json().catch(() => ({ message: response.statusText }));
         console.error(`[HttpClient] 请求失败:`, response.status, errorData);
         throw new Error(errorData.message || `HTTP ${response.status}`);
@@ -120,6 +139,65 @@ class HttpClient {
 
       console.error('[HttpClient] 请求错误:', error);
       throw error;
+    }
+  }
+
+  /**
+   * 处理401错误
+   * 尝试重新认证并重试请求
+   */
+  private async handle401Error<T>(endpoint: string, config: RequestConfig): Promise<T> {
+    // 如果已经在刷新token，将请求加入队列
+    if (this.isRefreshing) {
+      console.log('[HttpClient] Token刷新中，请求加入队列...');
+      return new Promise((resolve, reject) => {
+        this.pendingRequests.push({ resolve, reject, endpoint, config });
+      });
+    }
+
+    // 开始刷新token
+    this.isRefreshing = true;
+    console.log('[HttpClient] 开始重新认证...');
+
+    try {
+      // 动态导入authService避免循环依赖
+      const { default: authService } = await import('../authService');
+      // 强制刷新token，忽略本地token状态
+      const loginSuccess = await authService.autoLogin(true);
+
+      if (!loginSuccess) {
+        throw new Error('重新认证失败');
+      }
+
+      console.log('[HttpClient] 重新认证成功，重试原请求...');
+
+      // 认证成功，重试原请求和所有排队的请求
+      const originalRequest = this.request<T>(endpoint, config);
+      const queuedRequests = this.pendingRequests.map(req =>
+        this.request(req.endpoint, req.config)
+          .then(req.resolve)
+          .catch(req.reject)
+      );
+
+      // 清空队列
+      this.pendingRequests = [];
+
+      // 等待所有请求完成
+      await Promise.all(queuedRequests);
+
+      return originalRequest;
+    } catch (error) {
+      console.error('[HttpClient] 重新认证失败:', error);
+
+      // 认证失败，拒绝所有排队的请求
+      this.pendingRequests.forEach(req => {
+        req.reject(error);
+      });
+      this.pendingRequests = [];
+
+      throw new Error('认证失败，请重新登录');
+    } finally {
+      this.isRefreshing = false;
     }
   }
 

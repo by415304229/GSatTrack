@@ -11,7 +11,7 @@ interface UseAuthResult {
   error: string | null;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  autoLogin: () => Promise<boolean>;
+  autoLogin: (forceRefresh?: boolean) => Promise<boolean>;
 }
 
 /**
@@ -75,13 +75,13 @@ export const useAuth = (): UseAuthResult => {
   }, []);
 
   // 自动登录
-  const autoLogin = useCallback(async () => {
-    console.log('[useAuth] 执行自动登录');
+  const autoLogin = useCallback(async (forceRefresh: boolean = false) => {
+    console.log('[useAuth] 执行自动登录', { forceRefresh });
     setError(null);
     setIsLoading(true);
 
     try {
-      const success = await authService.autoLogin();
+      const success = await authService.autoLogin(forceRefresh);
       setIsAuthenticated(success);
       console.log('[useAuth] 自动登录结果:', success);
       return success;

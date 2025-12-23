@@ -72,17 +72,10 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
       console.log('[AppInitializer] 开始应用初始化...');
 
       try {
-        // 如果已认证，直接完成初始化
-        if (isAuthenticated) {
-          console.log('[AppInitializer] 已有有效认证，跳过登录');
-          await loadData();
-          return;
-        }
-
-        // 尝试自动登录
-        console.log('[AppInitializer] 尝试自动登录...');
+        // 始终尝试重新登录以获取最新token（强制刷新）
+        console.log('[AppInitializer] 尝试自动登录以获取最新token...');
         setInitStatus('正在登录...');
-        const loginSuccess = await autoLogin();
+        const loginSuccess = await autoLogin(true);
 
         if (!loginSuccess) {
           console.error('[AppInitializer] 自动登录失败');

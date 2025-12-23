@@ -77,13 +77,14 @@ class AuthService {
 
   /**
    * 自动登录
+   * @param forceRefresh 是否强制刷新token（忽略本地token状态）
    * @returns 登录是否成功
    */
-  async autoLogin(): Promise<boolean> {
-    console.log('[AuthService] 尝试自动登录...');
+  async autoLogin(forceRefresh: boolean = false): Promise<boolean> {
+    console.log('[AuthService] 尝试自动登录...', { forceRefresh });
 
-    // 如果已有有效 Token，直接返回成功
-    if (this.isAuthenticated()) {
+    // 如果不强制刷新，且已有有效 Token，直接返回成功
+    if (!forceRefresh && this.isAuthenticated()) {
       console.log('[AuthService] 已有有效 Token，无需重新登录');
       return true;
     }

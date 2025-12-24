@@ -19,10 +19,8 @@ interface OrbitalPlaneGroup {
 
 interface SatelliteManagerResult {
   groups: OrbitalPlaneGroup[];
-  activeGroups: string[];
   selectedSatellites: Set<string>;
   loading: boolean;
-  setActiveGroups: (groups: string[]) => void;
   toggleSatellite: (satId: string) => void;
   onSatellitePropertyChange: (satId: string, property: string, value: any) => void;
   refreshGroups: () => Promise<void>;
@@ -31,7 +29,6 @@ interface SatelliteManagerResult {
 const useSatelliteManager = (): SatelliteManagerResult => {
   const [groups, setGroups] = useState<OrbitalPlaneGroup[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeGroups, setActiveGroups] = useState<string[]>([]);
   const [selectedSatellites, setSelectedSatellites] = useState<Set<string>>(new Set());
   const displayNameCache = useRef<Map<string, string>>(new Map());
 
@@ -84,10 +81,6 @@ const useSatelliteManager = (): SatelliteManagerResult => {
       );
 
       setGroups(groupsWithDisplayNames);
-
-      if (groupsWithDisplayNames.length > 0 && activeGroups.length === 0) {
-        setActiveGroups([groupsWithDisplayNames[0].id]);
-      }
 
       // 初始化选中所有卫星
       const allSatIds = new Set<string>();
@@ -158,10 +151,8 @@ const useSatelliteManager = (): SatelliteManagerResult => {
 
   return {
     groups,
-    activeGroups,
     selectedSatellites,
     loading,
-    setActiveGroups,
     toggleSatellite,
     onSatellitePropertyChange,
     refreshGroups

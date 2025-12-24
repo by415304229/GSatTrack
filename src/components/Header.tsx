@@ -1,4 +1,3 @@
-import clsx from 'clsx';
 import { FileText, Satellite, Settings } from 'lucide-react';
 import React from 'react';
 import { StationPanel } from './StationPanel';
@@ -25,19 +24,6 @@ interface HeaderProps {
   onRemoveStation: (id: string) => void;
   onSettingsOpen: () => void;
   onTLEImportOpen: () => void;
-  groups: Array<{
-    id: string;
-    name: string;
-    description?: string;
-    tles: Array<{
-      name: string;
-      satId: string;
-      line1: string;
-      line2: string;
-    }>;
-  }>;
-  activeGroups: string[];
-  onActiveGroupsChange: (groups: string[]) => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -53,15 +39,12 @@ const Header: React.FC<HeaderProps> = ({
   onAddStation,
   onRemoveStation,
   onSettingsOpen,
-  onTLEImportOpen,
-  groups,
-  activeGroups,
-  onActiveGroupsChange
+  onTLEImportOpen
 }) => {
   return (
-    <header className="h-16 border-b border-slate-800 flex items-center px-6 bg-[#050914] shrink-0 justify-between relative z-20">
-      {/* Logo and Title */}
-      <div className="flex items-center gap-4">
+    <header className="h-16 border-b border-slate-800 flex items-center px-6 bg-[#050914] shrink-0 relative z-20">
+      {/* Logo and Title - 靠左 */}
+      <div className="flex items-center gap-4 absolute left-6">
         <div className="p-2 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
           <Satellite className="text-cyan-400" size={24} />
         </div>
@@ -76,8 +59,8 @@ const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Center Controls */}
-      <div className="flex items-center gap-4">
+      {/* Center Controls - 居中 */}
+      <div className="flex items-center gap-4 mx-auto">
         <TimeControls
           time={simTime}
           rate={timeRate}
@@ -106,29 +89,6 @@ const Header: React.FC<HeaderProps> = ({
           <FileText size={12} />
           导入TLE
         </button>
-      </div>
-
-      {/* Group Switcher */}
-      <div className="flex items-center gap-2">
-        {groups.map(g => (
-          <button
-            key={g.id}
-            onClick={() => {
-              // 互斥切换逻辑：点击已激活的组不做操作，点击新组则只激活该组
-              if (!activeGroups.includes(g.id)) {
-                onActiveGroupsChange([g.id]);
-              }
-            }}
-            className={clsx(
-              "px-3 py-1.5 text-[10px] font-bold rounded transition-all border uppercase tracking-wider",
-              activeGroups.includes(g.id)
-                ? "bg-cyan-950 text-cyan-400 border-cyan-500/50"
-                : "bg-slate-900 text-slate-500 border-slate-800 hover:bg-slate-800 hover:text-slate-300"
-            )}
-          >
-            {g.name}
-          </button>
-        ))}
       </div>
     </header>
   );

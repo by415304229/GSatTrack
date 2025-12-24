@@ -118,16 +118,53 @@ VITE_CACHE_DURATION_SATELLITE=3600000
 - 实现连线状态动画（激活/未激活）
 - 支持连线样式自定义（颜色、粗细、透明度）
 
-##### 2.1.3 弧段预报界面
-- 创建弧段预报面板组件（`src/components/arc/ArcForecastBanner.tsx`）
-- **设计决策**：
-  - 弧段状态始终基于系统时间（不受时间模拟影响）
-  - 面板置于屏幕中央上方，独立的全局提示组件
-  - 显示格式："卫星XXX将于xx分xx秒后入境xxx信关站"
-  - 最多显示4条预报信息
-  - 信息动态刷新（每秒更新倒计时）
-- 实现弧段倒计时功能（`src/components/arc/ArcCountdown.tsx`）
-- 支持弧段详情快速查看和操作
+##### 2.1.3 弧段预报界面 - ✅ 已完成
+**实现日期：** 2025-12-24
+
+**已实现的模块：**
+
+1. **弧段预报横幅组件** (`src/components/arc/ArcForecastBanner.tsx`)
+   - 独立悬浮条样式，每个弧段独立显示
+   - 屏幕中央上方显示，可单独关闭
+   - 高透明度背景（60%），不遮挡主画面
+
+2. **业务逻辑**
+   - 弧段状态始终基于系统时间（不受时间模拟影响）
+   - 智能显示规则：
+     - 如果5分钟内有即将入境的卫星 → 显示5分钟内所有弧段（最多3条）
+     - 如果5分钟内无即将入境的卫星 → 仅显示最近的1条弧段
+   - 每个悬浮条可独立关闭
+
+3. **显示格式**
+   - 格式：`📻 卫星→信关站 mm:ss ×`
+   - 倒计时绿色高亮（`text-emerald-400`）
+   - 支持小时格式（超过1小时显示 `1h30m`）
+
+4. **类型定义** (`src/types/arc.types.ts`)
+   ```typescript
+   export enum ArcStatus {
+     UPCOMING = 'upcoming',
+     ACTIVE = 'active',
+     EXPIRED = 'expired'
+   }
+
+   export interface ArcWithStatus extends ArcSegment {
+     status: ArcStatus;
+     timeToStart: number;
+     timeToEnd: number;
+     progress: number;
+   }
+   ```
+
+5. **弧段时间工具** (`src/utils/arcTimeUtils.ts`)
+   - 弧段状态计算（upcoming/active/expired）
+   - 倒计时格式化
+   - 时间范围格式化
+
+6. **弧段监控Hook** (`src/hooks/useArcMonitor.ts`)
+   - 实时状态计算（基于系统时间）
+   - 自动更新倒计时
+   - 加载和错误状态管理
 
 ##### 2.1.4 语音播报系统
 - 实现Web Speech API封装服务（`src/services/speechService.ts`）
@@ -536,11 +573,12 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 #### 新增组件列表
 ```
 src/components/
-├── ArcForecastPanel.tsx      // 弧段预报面板
-│   ├── 使用 useArcService Hook
-│   ├── 显示即将到来的弧段列表
-│   ├── 集成 Countdown 组件
-│   └── 支持弧段筛选和排序
+├── arc/
+│   ├── ArcForecastBanner.tsx // ✅ 弧段预报横幅（独立悬浮条）
+│   │   ├── 使用 useArcMonitor Hook
+│   │   ├── 智能显示（5分钟内/最近1条）
+│   │   └── 独立关闭按钮
+│   └── ArcConnections3D.tsx  // ✅ 3D弧段连线渲染组件
 ├── ArcConnectionLine.tsx     // 卫星连线组件
 │   ├── 3D 渲染：使用 THREE.Line
 │   ├── 2D 渲染：Canvas 2D 绘制
@@ -601,11 +639,15 @@ src/services/
 │   ├── WebSocket 连接管理
 │   ├── 自动重连逻辑
 │   └── 更新通知分发
-├── speechService.ts          // ⏳ 语音播报服务（规划中）
+├── speechService.ts          // ✅ 语音播报服务（已实现）
 │   ├── Web Speech API 封装
 │   ├── 语音队列管理
 │   ├── 多语言支持
 │   └── 音量控制接口
+├── speechNotificationService.ts // ✅ 语音通知服务（已实现）
+│   ├── 弧段检查和通知触发
+│   ├── 通知去重机制
+│   └── 配置管理
 ├── geoDataService.ts         // ⏳ 地理数据服务（规划中）
 │   ├── GeoJSON 数据加载
 │   ├── 坐标系转换
@@ -632,16 +674,17 @@ src/hooks/
 ├── useSatelliteManager.ts    // ✅ 卫星管理（已更新）
 │   ├── 集成API数据过滤
 │   └── 使用API卫星名称
-├── useArcSegments.ts         // ⏳ 弧段计算逻辑（规划中）
-│   ├── 激活弧段筛选
-│   ├── 时间窗口计算
-│   ├── 与时间模拟系统集成
-│   └── 连线状态判断
-├── useSpeechSynthesis.ts     // ⏳ 语音合成（规划中）
+├── useArcMonitor.ts          // ✅ 弧段监控（已实现）
+│   ├── 弧段状态实时计算
+│   ├── 倒计时更新
+│   ├── 加载和错误状态管理
+│   └── 基于系统时间
+├── useSpeechSynthesis.ts     // ✅ 语音合成（已实现）
 │   ├── 语音播报控制
-│   ├── 队列管理
-│   ├── 权限检查
-│   └── 设置同步
+│   ├── 配置管理
+│   ├── 测试功能
+│   └── localStorage持久化
+├── useArcSegments.ts         // ⏳ 弧段计算逻辑（规划中）
 ├── useGeographicData.ts      // ⏳ 地理数据加载（规划中）
 │   ├── 数据懒加载
 │   ├── 缓存管理
@@ -819,6 +862,6 @@ export default defineConfig({
 
 ---
 
-**文档版本：** 2.0
-**最后更新：** 2025-12-22
+**文档版本：** 2.1
+**最后更新：** 2025-12-24
 **下次评审：** 2025-12-29

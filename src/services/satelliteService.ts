@@ -80,23 +80,13 @@ const parseTLE = (data: string): TLEData[] => {
 };
 
 export const fetchSatelliteGroups = async (): Promise<OrbitalPlaneGroup[]> => {
-  // 定义最新的卫星组名称映射
-  const latestGroupNames = {
-    qianfan: '千帆卫星（G60）',
-    stations: '空间站',
-    starlink: 'Starlink'
-  };
-
   // 首先检查localStorage中是否有更新后的卫星组数据
   const localStorageGroups = localStorage.getItem('satelliteGroups');
   if (localStorageGroups) {
     try {
       const groups = JSON.parse(localStorageGroups);
-      // 更新卫星组名称为最新的中文名称
-      return groups.map((group: OrbitalPlaneGroup) => ({
-        ...group,
-        name: latestGroupNames[group.id as keyof typeof latestGroupNames] || group.name
-      }));
+      // 只返回千帆卫星分组
+      return groups.filter((group: OrbitalPlaneGroup) => group.id === 'qianfan');
     } catch (error) {
       console.error('Failed to parse satellite groups from localStorage:', error);
     }
@@ -107,23 +97,10 @@ export const fetchSatelliteGroups = async (): Promise<OrbitalPlaneGroup[]> => {
       id: 'qianfan',
       name: '千帆卫星（G60）',
       description: 'Thousand Sails Constellation',
-      url: '/data/QIANFAN.txt', // Using local TLE file
+      url: '/data/QIANFAN.txt',
       source: 'local_file'
-    },
-    {
-      id: 'stations',
-      name: '空间站',
-      description: 'ISS & Tiangong',
-      url: '/data/Stations.txt', // Using local TLE file
-      source: 'local_file'
-    },
-    {
-      id: 'starlink',
-      name: 'Starlink',
-      description: 'SpaceX Starlink',
-      url: '/data/StarLink.txt', // Using local TLE file
-      source: 'local_file'
-    }];
+    }
+  ];
 
   const adjustedSources = sources.map(source => ({
     ...source,
@@ -147,15 +124,12 @@ export const fetchSatelliteGroups = async (): Promise<OrbitalPlaneGroup[]> => {
         // 使用空数据继续
       }
 
-      // Post-processing filters for specific groups (especially to limit Starlink count)
+      // Post-processing filters for qianfan group
       if (source.id === 'qianfan') {
         tles = tles.filter(tle =>
           tle.name.toUpperCase().includes('QIANFAN') ||
           tle.name.toUpperCase().includes('THOUSAND SAILS')
         );
-      } else if (source.id === 'starlink') {
-        // Limit Starlink to prevent performance death
-        tles = tles.filter((_, i) => i % 50 === 0).slice(0, 100);
       }
 
       return {
@@ -210,8 +184,8 @@ export const updateSatelliteGroup = async (update: SatelliteGroupUpdate): Promis
   // 获取当前所有卫星组
   let groups = await fetchSatelliteGroups();
 
-  // 只允许更新默认的3个卫星组
-  const allowedGroupIds = ['qianfan', 'stations', 'starlink'];
+  // 只允许更新千帆卫星组
+  const allowedGroupIds = ['qianfan'];
   if (!allowedGroupIds.includes(groupId)) {
     throw new Error(`只允许更新默认的卫星组，不允许创建新组`);
   }
@@ -285,6 +259,6 @@ export const updateSatelliteGroup = async (update: SatelliteGroupUpdate): Promis
 
 // 检查卫星组是否存在
 export const isSatelliteGroupExists = async (groupId: string): Promise<boolean> => {
-  const allowedGroupIds = ['qianfan', 'stations', 'starlink'];
+  const allowedGroupIds = ['qianfan'];
   return allowedGroupIds.includes(groupId);
 };

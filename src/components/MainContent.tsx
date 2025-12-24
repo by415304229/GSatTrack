@@ -5,7 +5,7 @@ import type { ArcSegment, ArcVisualizationConfig } from '../types/arc.types';
 
 interface MainContentProps {
   loading: boolean;
-  groups: Array<{
+  group?: {
     id: string;
     name: string;
     description?: string;
@@ -15,8 +15,7 @@ interface MainContentProps {
       line1: string;
       line2: string;
     }>;
-  }>;
-  activeGroups: string[];
+  };
   simTime: Date;
   stations: Array<{
     id: string;
@@ -36,8 +35,7 @@ interface MainContentProps {
 
 const MainContent: React.FC<MainContentProps> = ({
   loading,
-  groups,
-  activeGroups,
+  group,
   simTime,
   stations,
   viewMode,
@@ -58,34 +56,33 @@ const MainContent: React.FC<MainContentProps> = ({
     );
   }
 
+  if (!group) {
+    return (
+      <main className="flex-1 overflow-hidden flex flex-col relative">
+        <div className="flex-1 flex items-center justify-center flex-col gap-4">
+          <div className="text-slate-600 font-mono text-sm">未找到卫星数据</div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="flex-1 overflow-hidden flex flex-col relative">
       <div className="flex-1 flex flex-col">
-        {activeGroups.map(groupId => {
-          const group = groups.find(g => g.id === groupId);
-          if (!group) return null;
-          return (
-            <div key={groupId} className="flex-1 border-b border-slate-800 last:border-0">
-              <PlaneMonitor
-                group={group}
-                active={true}
-                simulatedTime={simTime}
-                groundStations={stations}
-                viewMode={viewMode}
-                orbitWindowMinutes={orbitWindowMinutes}
-                selectedSatellites={selectedSatellites}
-                timeRate={timeRate}
-                arcs={arcs}
-                arcVisualizationConfig={arcVisualizationConfig}
-              />
-            </div>
-          );
-        })}
-        {activeGroups.length === 0 && (
-          <div className="flex-1 flex items-center justify-center text-slate-600 font-mono text-sm">
-            未选择活动数据源
-          </div>
-        )}
+        <div className="flex-1">
+          <PlaneMonitor
+            group={group}
+            active={true}
+            simulatedTime={simTime}
+            groundStations={stations}
+            viewMode={viewMode}
+            orbitWindowMinutes={orbitWindowMinutes}
+            selectedSatellites={selectedSatellites}
+            timeRate={timeRate}
+            arcs={arcs}
+            arcVisualizationConfig={arcVisualizationConfig}
+          />
+        </div>
       </div>
     </main>
   );

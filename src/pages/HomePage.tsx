@@ -17,10 +17,8 @@ const HomePage: React.FC = () => {
     // 状态管理
     const {
         groups,
-        activeGroups,
         selectedSatellites,
         loading,
-        setActiveGroups,
         toggleSatellite,
         refreshGroups,
         onSatellitePropertyChange
@@ -154,15 +152,11 @@ const HomePage: React.FC = () => {
                 onRemoveStation={handleRemoveStation}
                 onSettingsOpen={() => setSettingsOpen(true)}
                 onTLEImportOpen={() => setShowTLEImport(true)}
-                groups={groups}
-                activeGroups={activeGroups}
-                onActiveGroupsChange={setActiveGroups}
             />
 
             <MainContent
                 loading={loading}
-                groups={groups}
-                activeGroups={activeGroups}
+                group={groups[0]}
                 simTime={simTime}
                 stations={stations}
                 viewMode={viewMode}

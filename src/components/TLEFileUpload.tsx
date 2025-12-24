@@ -1,11 +1,10 @@
 import { AlertCircle, FileText, Upload, X } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { parseTLEContent, type ParsedSatellite } from '../utils/tleParser';
 import { validateTLEContent } from '../utils/tleValidator';
 
 import type { SatelliteTLE } from '../services/satelliteService';
-import { fetchSatelliteGroups, updateSatelliteGroup } from '../services/satelliteService';
-import { type SatelliteGroup } from '../types';
+import { updateSatelliteGroup } from '../services/satelliteService';
 
 interface tlefileuploadprops {
   onFileUpload: (file: File, content: string, parsedsatellites: ParsedSatellite[]) => void;
@@ -21,31 +20,8 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [satelliteGroups, setSatelliteGroups] = useState<SatelliteGroup[]>([]);
-  const [selectedGroupId, setSelectedGroupId] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
-
-  // 加载现有的卫星组
-  useEffect(() => {
-    const loadGroups = async () => {
-      try {
-        console.log('加载卫星组...');
-        const groups = await fetchSatelliteGroups();
-        setSatelliteGroups(groups);
-        // 默认选择第一个卫星组
-        if (groups.length > 0) {
-          setSelectedGroupId(groups[0].id);
-          console.log(`默认选择卫星组: ${groups[0].name} (${groups[0].id})`);
-        }
-        console.log(`加载完成，共 ${groups.length} 个卫星组`);
-      } catch (error) {
-        console.error('加载卫星组失败:', error);
-      }
-    };
-
-    loadGroups();
-  }, []);
 
   // 处理文件选择
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -85,15 +61,11 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
 
     console.log('开始处理文件:', file.name);
 
-    if (!selectedGroupId) {
-      const errorMsg = '请选择目标卫星组';
-      setUploadError(errorMsg);
-      console.error(errorMsg);
-      return;
-    }
+    // 硬编码使用千帆卫星组
+    const targetGroupId = 'qianfan';
 
     try {
-      console.log('选择的卫星组ID:', selectedGroupId);
+      console.log('目标卫星组ID:', targetGroupId);
 
       // 1. 读取文件内容
       console.log('读取文件内容...');
@@ -137,21 +109,21 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
       // 更新现有组，默认使用合并模式
       console.log('更新卫星组...');
       const updatedGroups = await updateSatelliteGroup({
-        groupId: selectedGroupId,
+        groupId: targetGroupId,
         tles: satelliteTles,
         merge: true
       });
       console.log('卫星组更新成功');
 
       // 获取更新后的目标组
-      const targetGroup = updatedGroups.find(g => g.id === selectedGroupId);
+      const targetGroup = updatedGroups.find(g => g.id === targetGroupId);
       const successMsg = `成功更新卫星组 "${targetGroup?.name || '未知'}"，处理了 ${satelliteTles.length} 颗卫星`;
       setUploadSuccess(successMsg);
       console.log(successMsg);
 
       // 通知父组件卫星组已更新
       if (onSatelliteGroupUpdated) {
-        onSatelliteGroupUpdated(selectedGroupId, satelliteTles.length);
+        onSatelliteGroupUpdated(targetGroupId, satelliteTles.length);
         console.log('通知父组件卫星组已更新');
       }
 
@@ -207,33 +179,6 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
       />
 
       <div className="flex flex-col gap-6">
-        {/* 卫星组选择区域 */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium">目标卫星组</h3>
-          <div className="space-y-3">
-            <select
-              value={selectedGroupId}
-              onChange={(e) => {
-                setSelectedGroupId(e.target.value);
-                console.log('用户选择了卫星组:', e.target.value);
-              }}
-              className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              disabled={disabled || satelliteGroups.length === 0}
-            >
-              {satelliteGroups.length === 0 ? (
-                <option value="">加载中...</option>
-              ) : (
-                satelliteGroups.map(group => (
-                  <option key={group.id} value={group.id}>{group.name}</option>
-                ))
-              )}
-            </select>
-            <p className="text-xs text-slate-500">
-              选择要更新的卫星组，上传的TLE数据将合并到该组中
-            </p>
-          </div>
-        </div>
-
         {/* Drag and drop area */}
         <div
           ref={dropZoneRef}
@@ -264,10 +209,10 @@ const TLEFileUpload: React.FC<tlefileuploadprops> = ({
         <div className="flex justify-center">
           <button
             onClick={disabled ? undefined : handleclick}
-            disabled={disabled || satelliteGroups.length === 0}
+            disabled={disabled}
             className={`
               flex items-center gap-2 px-6 py-2.5 rounded-md font-medium transition-colors
-              ${disabled || satelliteGroups.length === 0
+              ${disabled
                 ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
                 : 'bg-cyan-500 hover:bg-cyan-600 text-white'}
             `}

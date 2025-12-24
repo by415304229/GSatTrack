@@ -1,12 +1,11 @@
 /**
  * 弧段预报横幅组件
- * 显示在屏幕中央上方的弧段预报信息
+ * 每个弧段独立显示为紧凑悬浮条，可单独关闭
  */
 
 import { Clock, Radio, X } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { ArcWithStatus } from '../../types/arc.types';
-import { ArcCountdown } from './ArcCountdown';
 
 interface ArcForecastBannerProps {
   arcs: ArcWithStatus[];
@@ -15,76 +14,118 @@ interface ArcForecastBannerProps {
 }
 
 /**
- * 弧段预报横幅组件
- * 屏幕中央上方显示，最多4条预报信息
+ * 格式化为 mm:ss 格式的倒计时
+ */
+const formatCountdownShort = (milliseconds: number): string => {
+  const absMs = Math.abs(milliseconds);
+  const seconds = Math.floor(absMs / 1000);
+  const minutes = Math.floor(seconds / 60);
+
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    return `${hours}h${minutes % 60}m`;
+  }
+
+  return `${minutes.toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
+};
+
+/**
+ * 单个弧段悬浮条组件
+ */
+interface ArcBarItemProps {
+  arc: ArcWithStatus;
+  onClose: () => void;
+}
+
+const ArcBarItem: React.FC<ArcBarItemProps> = ({ arc, onClose }) => {
+  return (
+    <div className="bg-[#020617]/60 backdrop-blur border border-slate-700/50 rounded-lg px-3 py-2 shadow-lg">
+      <div className="flex items-center gap-2 text-xs">
+        <Radio size={12} className="text-cyan-400 animate-pulse shrink-0" />
+        <span className="text-slate-300 flex-1 whitespace-nowrap">
+          {arc.satName}→{arc.siteName}
+        </span>
+        <span className="text-emerald-400 font-mono font-bold tabular-nums">
+          {formatCountdownShort(arc.timeToStart)}
+        </span>
+        <button
+          onClick={onClose}
+          className="p-0.5 hover:bg-slate-700/50 rounded-full transition-colors shrink-0"
+        >
+          <X size={10} className="text-slate-500 hover:text-slate-300" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * 弧段预报横幅组件 - 每个弧段独立悬浮条
+ * 屏幕中央上方显示
+ * - 如果5分钟内有即将入境的卫星，显示5分钟内所有弧段（最多3条）
+ * - 如果5分钟内没有即将入境的卫星，显示最近1条弧段
  */
 export const ArcForecastBanner: React.FC<ArcForecastBannerProps> = ({
   arcs,
   isLoading = false,
   error = null
 }) => {
-  const [isVisible, setIsVisible] = useState(true);
+  // 跟踪被用户关闭的弧段ID
+  const [hiddenArcIds, setHiddenArcIds] = useState<Set<number>>(new Set());
+
+  // 5分钟的毫秒数
+  const FIVE_MINUTES_MS = 5 * 60 * 1000;
+
+  // 获取即将到来的弧段，排除已关闭的，按时间排序
+  const upcomingArcs = arcs
+    .filter(arc => arc.status === 'upcoming')
+    .filter(arc => !hiddenArcIds.has(arc.taskID))
+    .sort((a, b) => a.timeToStart - b.timeToStart);
+
+  // 检查5分钟内是否有即将入境的弧段
+  const hasArcsWithinFiveMinutes = upcomingArcs.some(arc => arc.timeToStart <= FIVE_MINUTES_MS);
+
+  // 根据规则选择要显示的弧段
+  const displayArcs = hasArcsWithinFiveMinutes
+    ? upcomingArcs.filter(arc => arc.timeToStart <= FIVE_MINUTES_MS).slice(0, 3)
+    : upcomingArcs.slice(0, 1);
+
+  // 关闭单个弧段
+  const handleCloseArc = (taskId: number) => {
+    setHiddenArcIds(prev => new Set(prev).add(taskId));
+  };
 
   // 如果没有数据且不在加载中，不显示
-  const shouldShow = isVisible && (arcs.length > 0 || isLoading || error);
-
-  if (!shouldShow) {
+  if (displayArcs.length === 0 && !isLoading && !error) {
     return null;
   }
 
   return (
-    <div className="fixed top-20 left-1/2 -translate-x-1/2 z-30">
-      <div className="bg-[#020617]/95 backdrop-blur border border-slate-700 rounded-lg shadow-xl max-w-2xl">
-        {/* 头部 */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700">
-          <div className="flex items-center gap-2">
-            <Radio size={14} className="text-cyan-400" />
-            <span className="text-xs font-bold text-white">弧段预报</span>
-            {arcs.length > 0 && (
-              <span className="text-[10px] text-slate-500">
-                ({arcs.length}条)
-              </span>
-            )}
+    <div className="fixed top-20 left-1/2 -translate-x-1/2 z-20 flex flex-col gap-2">
+      {isLoading ? (
+        <div className="bg-[#020617]/60 backdrop-blur border border-slate-700/50 rounded-lg px-4 py-2 shadow-lg">
+          <span className="text-xs text-slate-500">加载中...</span>
+        </div>
+      ) : error ? (
+        <div className="bg-[#020617]/60 backdrop-blur border border-slate-700/50 rounded-lg px-4 py-2 shadow-lg">
+          <span className="text-xs text-red-400">{error}</span>
+        </div>
+      ) : displayArcs.length === 0 ? (
+        <div className="bg-[#020617]/60 backdrop-blur border border-slate-700/50 rounded-lg px-4 py-2 shadow-lg">
+          <div className="flex items-center gap-2 text-xs text-slate-600">
+            <Clock size={10} />
+            暂无预报弧段
           </div>
-          <button
-            onClick={() => setIsVisible(false)}
-            className="p-1 hover:bg-slate-800 rounded transition-colors"
-          >
-            <X size={12} className="text-slate-500" />
-          </button>
         </div>
-
-        {/* 内容区域 */}
-        <div className="p-3 space-y-2 max-h-[200px] overflow-y-auto">
-          {isLoading ? (
-            <div className="text-center py-4">
-              <div className="text-xs text-slate-500">加载中...</div>
-            </div>
-          ) : error ? (
-            <div className="text-center py-4">
-              <div className="text-xs text-red-400">{error}</div>
-            </div>
-          ) : arcs.length === 0 ? (
-            <div className="text-center py-4">
-              <div className="text-xs text-slate-600 flex items-center justify-center gap-2">
-                <Clock size={12} />
-                暂无预报弧段
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {arcs.map((arc) => (
-                <ArcCountdown
-                  key={arc.taskID}
-                  arc={arc}
-                  showIcon={true}
-                  compact={false}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+      ) : (
+        displayArcs.map((arc) => (
+          <ArcBarItem
+            key={arc.taskID}
+            arc={arc}
+            onClose={() => handleCloseArc(arc.taskID)}
+          />
+        ))
+      )}
     </div>
   );
 };

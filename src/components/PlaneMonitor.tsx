@@ -1,4 +1,4 @@
-import { Activity, Globe, Map } from 'lucide-react';
+import { Globe, Map } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { type GroundStation, type OrbitalPlaneGroup, type SatellitePos } from '../types';
 import { calculateOrbitPath, getSatellitePosition } from '../utils/satMath';
@@ -147,23 +147,6 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
                     onTrackToggle={handleTrackToggle}
                 />
             )}
-
-            {/* Monitor Header */}
-            <div className="flex items-center justify-between px-6 py-3 bg-[#0B1120] border-b border-slate-800/50 backdrop-blur-sm shrink-0">
-                <div className="flex items-center gap-3">
-                    <Activity size={18} className="text-cyan-400" />
-                    <div>
-                        <h2 className="font-mono font-bold text-base text-slate-100 tracking-widest uppercase">{group.name}</h2>
-                        <div className="flex items-center gap-2 text-[10px] text-cyan-500/70 font-mono">
-                            <span>跟踪数量: {satellites.length}</span>
-                        </div>
-                    </div>
-                </div>
-                <div className="text-right hidden sm:block">
-                    <div className="text-xs font-mono text-slate-400">平均高度</div>
-                    <div className="text-lg font-mono font-bold text-white leading-none">~{satellites[0]?.alt.toFixed(0) || 0}<span className="text-xs text-slate-500 ml-1">KM</span></div>
-                </div>
-            </div>
 
             {/* Views */}
             <div className="flex-1 min-h-0">

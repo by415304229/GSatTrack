@@ -17,8 +17,6 @@ class ArcService {
    * @returns 弧段列表
    */
   async fetchArcs(params: ArcQueryParams = {}): Promise<ArcSegment[]> {
-    console.log('[ArcService] 获取弧段数据...', params);
-
     // 构建查询字符串
     const queryParams = new URLSearchParams();
 
@@ -42,7 +40,6 @@ class ArcService {
 
     try {
       const response = await this.httpClient.get<PagedList<ArcSegment>>(url);
-      console.log('[ArcService] 获取到弧段数据:', response);
 
       // 从分页响应中提取 items
       const arcs = response.items || response.data || [];
@@ -75,8 +72,6 @@ class ArcService {
     const now = new Date();
     const endTime = new Date(now.getTime() + hours * 3600000);
 
-    console.log('[ArcService] 获取即将到来的弧段:', { scid, hours });
-
     return this.fetchArcs({
       scid,
       startTimeBegin: now.toISOString(),
@@ -91,8 +86,6 @@ class ArcService {
    * @returns 活跃弧段列表
    */
   async fetchActiveArcs(scid?: string): Promise<ArcSegment[]> {
-    console.log('[ArcService] 获取活跃弧段:', { scid });
-
     const arcs = await this.fetchArcs({ scid, pageSize: 200 });
     const now = new Date();
 
@@ -102,7 +95,6 @@ class ArcService {
       return now >= startTime && now <= endTime;
     });
 
-    console.log('[ArcService] 活跃弧段数量:', activeArcs.length);
     return activeArcs;
   }
 
@@ -118,7 +110,6 @@ class ArcService {
       const isExpired = Date.now() - timestamp > this.CACHE_DURATION;
 
       if (isExpired) {
-        console.log('[ArcService] 缓存已过期');
         localStorage.removeItem(this.CACHE_KEY);
         return null;
       }
@@ -140,7 +131,6 @@ class ArcService {
         timestamp: Date.now()
       };
       localStorage.setItem(this.CACHE_KEY, JSON.stringify(cacheData));
-      console.log('[ArcService] 数据已缓存');
     } catch (error) {
       console.error('[ArcService] 保存缓存失败:', error);
     }

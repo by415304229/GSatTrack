@@ -60,8 +60,8 @@ class SpeechNotificationService {
    */
   private speakArcIncoming(arc: ArcWithStatus): void {
     const message = `${arc.satName}卫星即将通过${arc.siteName}信关站`;
+    console.log(`[语音播报] ${message}`);
     speechService.speak(message);
-    console.log('[SpeechNotification] 播报:', message);
   }
 
   /**

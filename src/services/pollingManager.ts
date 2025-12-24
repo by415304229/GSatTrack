@@ -40,8 +40,6 @@ class PollingManager {
    * @param autoStart 是否自动开始
    */
   register(id: string, fn: () => Promise<void>, interval: number, autoStart: boolean = true): void {
-    console.log(`[PollingManager] 注册任务: ${id}, 间隔: ${interval}ms`);
-
     this.tasks.set(id, {
       id,
       fn,
@@ -59,10 +57,7 @@ class PollingManager {
    * 启动轮询
    */
   start(): void {
-    if (this.isRunning) {
-      console.log('[PollingManager] 轮询已在运行');
-      return;
-    }
+    if (this.isRunning) return;
 
     console.log('[PollingManager] 启动轮询');
     this.isRunning = true;
@@ -73,6 +68,8 @@ class PollingManager {
    * 停止轮询
    */
   stop(): void {
+    if (!this.isRunning) return;
+
     console.log('[PollingManager] 停止轮询');
     this.isRunning = false;
 
@@ -100,8 +97,6 @@ class PollingManager {
 
     // 并行执行任务
     if (tasksToRun.length > 0) {
-      console.log(`[PollingManager] 执行 ${tasksToRun.length} 个任务`);
-
       await Promise.all(
         tasksToRun.map(async (task) => {
           try {
@@ -121,7 +116,6 @@ class PollingManager {
         const minInterval = Math.min(...enabledTasks.map(t => t.interval));
         this.timerId = window.setTimeout(() => this.tick(), minInterval);
       } else {
-        console.log('[PollingManager] 没有启用的任务，停止轮询');
         this.stop();
       }
     }
@@ -136,7 +130,6 @@ class PollingManager {
     const task = this.tasks.get(id);
     if (task) {
       task.enabled = enabled;
-      console.log(`[PollingManager] 任务 ${id} ${enabled ? '已启用' : '已禁用'}`);
 
       // 如果启用且轮询未运行，启动轮询
       if (enabled && !this.isRunning) {
@@ -154,7 +147,6 @@ class PollingManager {
     const task = this.tasks.get(id);
     if (task) {
       task.interval = interval;
-      console.log(`[PollingManager] 任务 ${id} 间隔已更新为 ${interval}ms`);
     }
   }
 
@@ -164,14 +156,12 @@ class PollingManager {
    */
   unregister(id: string): void {
     this.tasks.delete(id);
-    console.log(`[PollingManager] 移除任务: ${id}`);
   }
 
   /**
    * 清除所有任务
    */
   clear(): void {
-    console.log('[PollingManager] 清除所有任务');
     this.stop();
     this.tasks.clear();
   }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import useSatelliteManager from '../hooks/useSatelliteManager';
 import { useTimeSimulation } from '../hooks/useTimeSimulation';
 import useArcMonitor from '../hooks/useArcMonitor';
@@ -115,16 +115,26 @@ const HomePage: React.FC = () => {
     };
 
     // 语音通知检查 - 每5秒检查一次
+    // 使用 useRef 存储 arcMonitor 和 speech，避免依赖项频繁变化
+    const arcMonitorRef = useRef(arcMonitor);
+    const speechRef = useRef(speech);
+
+    // 更新 ref 值
+    useEffect(() => {
+        arcMonitorRef.current = arcMonitor;
+        speechRef.current = speech;
+    });
+
     useEffect(() => {
         const interval = setInterval(() => {
             speechNotificationService.checkAndNotify(
-                arcMonitor.displayArcs,
-                speech.config
+                arcMonitorRef.current.displayArcs,
+                speechRef.current.config
             );
         }, 5000);
 
         return () => clearInterval(interval);
-    }, [arcMonitor.displayArcs, speech.config]);
+    }, []); // 空依赖数组，定时器只设置一次
 
     // 弧段可视化配置变更处理
     const handleArcVisualizationConfigChange = (config: Partial<ArcVisualizationConfig>) => {

@@ -79,12 +79,11 @@ class SpeechService {
    * 播报文本
    */
   speak(message: SpeechMessage | string): void {
+    const text = typeof message === 'string' ? message : message.text;
     if (!this.synthesis || !this.config.enabled) return;
 
     // 停止当前播报
     this.stop();
-
-    const text = typeof message === 'string' ? message : message.text;
     const utterance = new SpeechSynthesisUtterance(text);
 
     // 配置语音参数

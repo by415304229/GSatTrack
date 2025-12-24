@@ -43,10 +43,10 @@ export const useSpeechSynthesis = (): UseSpeechSynthesisResult => {
   const [isSupported, setIsSupported] = useState(speechService.isSupported());
   const [isSpeaking, setIsSpeaking] = useState(false);
 
-  // 初始化时设置配置到服务
+  // 初始化时设置配置到服务，配置变化时同步更新
   useEffect(() => {
     speechService.updateConfig(config);
-  }, []);
+  }, [config]);
 
   // 更新配置
   const updateConfig = useCallback((newConfig: Partial<SpeechConfig>) => {

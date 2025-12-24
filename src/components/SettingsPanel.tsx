@@ -1,5 +1,8 @@
 import { Settings, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import type { SpeechConfig } from '../types/speech.types';
+import type { ArcVisualizationConfig } from '../types/arc.types';
+import { ArcVisualization } from './arc/ArcVisualization';
 
 export interface SatelliteProperties {
     id: string;
@@ -17,6 +20,14 @@ export interface SettingsPanelProps {
     selectedSatellites: Set<string>;
     onSatelliteToggle: (satId: string) => void;
     onSatellitePropertyChange: (satId: string, property: string, value: any) => void;
+    // 语音播报配置
+    speechConfig?: SpeechConfig;
+    onSpeechConfigChange?: (config: Partial<SpeechConfig>) => void;
+    // 弧段可视化配置
+    arcVisualizationConfig?: ArcVisualizationConfig;
+    onArcVisualizationConfigChange?: (config: Partial<ArcVisualizationConfig>) => void;
+    // 测试语音功能
+    onTestSpeech?: () => void;
 }
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({
@@ -27,7 +38,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     selectedSatellites,
     onSatelliteToggle,
     availableSatellites,
-    onSatellitePropertyChange
+    onSatellitePropertyChange,
+    speechConfig,
+    onSpeechConfigChange,
+    arcVisualizationConfig,
+    onArcVisualizationConfigChange,
+    onTestSpeech
 }) => {
     const [windowInput, setWindowInput] = useState(orbitWindowMinutes.toString());
     const [searchTerm, setSearchTerm] = useState('');
@@ -266,6 +282,71 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                             已选择: {selectedSatellites.size} / {availableSatellites.length} 颗卫星
                         </div>
                     </div>
+
+                    {/* 语音播报设置 */}
+                    {speechConfig && onSpeechConfigChange && (
+                        <div className="space-y-3">
+                            <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wide text-zh">语音播报</h3>
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs text-slate-300 text-zh">启用语音播报</span>
+                                    <input
+                                        type="checkbox"
+                                        checked={speechConfig.enabled}
+                                        onChange={(e) => onSpeechConfigChange({ enabled: e.target.checked })}
+                                        className="rounded text-cyan-600 bg-slate-800 border-slate-600"
+                                    />
+                                </div>
+                                {speechConfig.enabled && (
+                                    <>
+                                        <div className="space-y-1">
+                                            <div className="flex justify-between">
+                                                <span className="text-[10px] text-slate-400 text-zh">音量</span>
+                                                <span className="text-[10px] text-cyan-400">{Math.round((speechConfig.volume || 0.8) * 100)}%</span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min="0"
+                                                max="1"
+                                                step="0.1"
+                                                value={speechConfig.volume || 0.8}
+                                                onChange={(e) => onSpeechConfigChange({ volume: parseFloat(e.target.value) })}
+                                                className="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                                            />
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[10px] text-slate-400 text-zh">提前通知</span>
+                                            <select
+                                                value={speechConfig.advanceNoticeMinutes || 1}
+                                                onChange={(e) => onSpeechConfigChange({ advanceNoticeMinutes: parseInt(e.target.value) })}
+                                                className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs"
+                                            >
+                                                <option value="1">1分钟</option>
+                                                <option value="5">5分钟</option>
+                                                <option value="10">10分钟</option>
+                                            </select>
+                                        </div>
+                                        {onTestSpeech && (
+                                            <button
+                                                onClick={onTestSpeech}
+                                                className="w-full py-1.5 bg-cyan-900 hover:bg-cyan-800 text-cyan-300 rounded text-xs transition-colors"
+                                            >
+                                                测试语音
+                                            </button>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 弧段可视化设置 */}
+                    {arcVisualizationConfig && onArcVisualizationConfigChange && (
+                        <ArcVisualization
+                            config={arcVisualizationConfig}
+                            onConfigChange={onArcVisualizationConfigChange}
+                        />
+                    )}
                 </div>
             </div>
         </div>

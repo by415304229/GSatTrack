@@ -35,12 +35,82 @@ GSatTrack是一个卫星跟踪系统，提供3D和2D视图展示卫星轨道、�
 **模块：** API集成、数据管理、实时通信
 **预估工作量：** 15人天
 
-##### 2.1.1 HTTP API集成
-- 创建弧段规划数据模型和类型定义
-- 实现HTTP请求服务模块（`src/services/arcService.ts`）
-- 添加WebSocket实时数据接收功能
-- 设计弧段数据验证和容错机制
-- 集成到现有数据流架构
+##### 2.1.1 HTTP API集成 - ✅ 已完成
+**实现日期：** 2025-12-23
+
+**已实现的模块：**
+
+1. **HTTP客户端封装** (`src/services/http/httpClient.ts`)
+   - 统一的fetch封装，支持请求拦截、错误处理、超时控制（默认30秒）
+   - Token自动注入（Bearer认证）
+   - 401自动重试机制，支持请求队列
+   - 支持获取响应头（用于Token提取）
+
+2. **Token管理器** (`src/services/http/tokenManager.ts`)
+   - JWT Token存储（Access Token + Refresh Token）
+   - Token过期检查
+   - 自动登录凭证管理（Base64编码存储）
+   - 单例模式实现
+
+3. **认证服务** (`src/services/authService.ts`)
+   - 用户登录（从响应头`accesstoken`获取Token）
+   - 用户登出
+   - 认证状态检查
+   - 自动登录功能
+
+4. **卫星API服务** (`src/services/satelliteApiService.ts`)
+   - 获取卫星列表，支持分页
+   - 根据ID获取单个卫星
+   - localStorage缓存机制（默认1小时）
+
+5. **弧段服务** (`src/services/arcService.ts`)
+   - 查询弧段列表（多参数筛选）
+   - 获取即将到来的弧段
+   - 获取活跃弧段
+   - 缓存降级策略
+
+6. **卫星映射服务** (`src/services/satelliteMappingService.ts`)
+   - API卫星数据与TLE数据通过NORAD ID关联
+   - 自动更新NamingMappingService
+   - 缓存机制（24小时）
+
+7. **遥测服务** (`src/services/telemetryService.ts`)
+   - 遥测单元数据获取
+
+8. **React Hooks**
+   - `useAuth.ts` - 认证管理
+   - `useArcService.ts` - 弧段数据管理
+   - `useSatelliteManager.ts` - 集成API数据过滤
+
+9. **应用初始化组件** (`src/components/AppInitializer.tsx`)
+   - 启动时自动登录
+   - 预加载卫星和弧段数据
+   - 弧段数据定时轮询
+
+10. **环境配置** (`src/config/env.config.ts`)
+    - API基础URL配置
+    - 自动登录凭证
+    - 轮询间隔配置
+    - 缓存时长配置
+
+**已实现的API端点：**
+```
+POST   /auth/login                # 用户登录
+GET    /satelite/paged-list       # 获取卫星列表
+GET    /arc/paged-list            # 获取弧段列表
+GET    /tm-unit/paged-list        # 获取遥测单元列表
+```
+
+**环境变量配置：**
+```bash
+VITE_API_BASE_URL=http://172.24.28.5:5000/api/v1
+VITE_AUTO_LOGIN_USERNAME=admin
+VITE_AUTO_LOGIN_PASSWORD=123456
+VITE_ARC_POLLING_INTERVAL=60000
+VITE_TELEMETRY_POLLING_INTERVAL=30000
+VITE_CACHE_DURATION_ARC=300000
+VITE_CACHE_DURATION_SATELLITE=3600000
+```
 
 ##### 2.1.2 弧段可视化实现
 - 在3D/2D视图中实现卫星与地面站连线显示
@@ -49,15 +119,24 @@ GSatTrack是一个卫星跟踪系统，提供3D和2D视图展示卫星轨道、�
 - 支持连线样式自定义（颜色、粗细、透明度）
 
 ##### 2.1.3 弧段预报界面
-- 创建弧段预报面板组件（`src/components/ArcForecastPanel.tsx`）
-- 在醒目位置显示即将到来的弧段信息
-- 实现弧段倒计时功能（`src/components/Countdown.tsx`）
+- 创建弧段预报面板组件（`src/components/arc/ArcForecastBanner.tsx`）
+- **设计决策**：
+  - 弧段状态始终基于系统时间（不受时间模拟影响）
+  - 面板置于屏幕中央上方，独立的全局提示组件
+  - 显示格式："卫星XXX将于xx分xx秒后入境xxx信关站"
+  - 最多显示4条预报信息
+  - 信息动态刷新（每秒更新倒计时）
+- 实现弧段倒计时功能（`src/components/arc/ArcCountdown.tsx`）
 - 支持弧段详情快速查看和操作
 
 ##### 2.1.4 语音播报系统
 - 实现Web Speech API封装服务（`src/services/speechService.ts`）
 - 支持中英文语音播报
-- 实现入境前1分钟自动语音提醒
+- **设计决策**：
+  - 入境提醒基于系统时间（与弧段状态保持一致）
+  - 使用定时器检查（每5秒检查一次）
+  - 提前1分钟触发语音播报
+  - 播报格式："XXX卫星即将通过XXX信关站"
 - 提供语音播报开关和音量控制
 
 #### 2.2 地理要素增强
@@ -144,31 +223,93 @@ GSatTrack是一个卫星跟踪系统，提供3D和2D视图展示卫星轨道、�
 
 ### 3.1 数据结构设计
 
-#### 弧段数据模型
+#### API数据类型（已实现） ✅
+位置：`src/services/types/api.types.ts`
+
+**登录相关：**
 ```typescript
-export interface ArcSegment {
-  id: string;
-  satelliteId: string;
-  groundStationId: string;
-  startTime: Date;
-  endTime: Date;
-  aosTime: Date; // Acquisition of Signal
-  losTime: Date; // Loss of Signal
-  maxElevation: number;
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  status: 'scheduled' | 'active' | 'completed' | 'cancelled';
+export interface LoginRequest {
+  account: string;
+  password: string;
 }
 
-export interface ArcPlan {
-  id: string;
+export interface LoginResponse {
+  id: number;
   name: string;
-  segments: ArcSegment[];
-  createdAt: Date;
-  updatedAt: Date;
 }
 ```
 
-#### 地理要素数据模型
+**卫星数据（PurestAdmin API返回）：**
+```typescript
+export interface APISatellite {
+  satID: number;              // 卫星ID
+  parentID?: number;          // 父级卫星ID
+  sateliteName: string;       // 卫星名称
+  bindTMJudgeGroupID?: number;
+  isEnable?: boolean;         // 是否启用
+  scid?: number;              // SCID
+  layer?: number;             // 层级
+  shortName?: string;         // 简称
+  nordID?: number;            // NORAD ID（用于与TLE数据关联）
+  satelliteStatus?: number;   // 0=停用, 1=启用, 2=维护中
+  saveTime?: string;
+  operator?: string;
+}
+```
+
+**弧段数据（PurestAdmin API返回）：**
+```typescript
+export interface ArcSegment {
+  taskID: number;             // 任务ID
+  scid: string;               // 卫星SCID
+  satName: string;            // 卫星名称
+  channelType: string;        // 通道类型
+  upSwitch: string;           // 上行开关
+  siteName: string;           // 站点名称
+  startTime: string;          // 开始时间（ISO 8601）
+  endTime: string;            // 结束时间（ISO 8601）
+  searchTime?: string;
+}
+```
+
+**弧段查询参数：**
+```typescript
+export interface ArcQueryParams extends PaginationParams {
+  taskID?: number;
+  scid?: string;              // 按卫星SCID筛选
+  satName?: string;           // 按卫星名称筛选
+  channelType?: string;       // 按通道类型筛选
+  siteName?: string;          // 按站点筛选
+  startTimeBegin?: string;    // 开始时间范围-起始
+  startTimeEnd?: string;      // 开始时间范围-结束
+  endTimeBegin?: string;      // 结束时间范围-起始
+  endTimeEnd?: string;        // 结束时间范围-结束
+}
+```
+
+**分页响应：**
+```typescript
+export interface PagedList<T> {
+  pageIndex: number;
+  pageSize: number;
+  total: number;
+  pageCount: number;
+  items: T[];                  // 或 data: T[]
+}
+```
+
+**遥测数据：**
+```typescript
+export interface TelemetryUnit {
+  tmNum: string;               // 遥测编号
+  tmName: string;              // 遥测名称
+  packageName: string;         // 包名称
+  pid: number;                 // PID
+  subsystemName: string;       // 子系统名称
+}
+```
+
+#### 地理要素数据模型（规划中）
 ```typescript
 export interface GeographicBoundary {
   id: string;
@@ -191,166 +332,203 @@ export interface SAABoundary {
 }
 ```
 
-### 3.2 HTTP API 集成方案
+### 3.2 HTTP API 集成方案 ✅ 已实现
 
-#### 3.2.1 技术选型
+#### 3.2.1 技术选型（已实现）
 基于项目现有架构，采用以下技术方案：
-- **HTTP 客户端**: 使用浏览器原生 `fetch` API（与现有代码保持一致）
+- **HTTP 客户端**: 使用浏览器原生 `fetch` API
 - **数据缓存**: localStorage 作为主缓存层
 - **状态管理**: 自定义 React Hooks
-- **实时更新**: WebSocket + 轮询机制（可选）
+- **认证方式**: JWT Token（Bearer认证，从响应头获取）
+- **实时更新**: 定时轮询机制
 
-#### 3.2.2 实现架构
+#### 3.2.2 实现架构（已实现）
 
+**核心组件：**
+
+1. **HTTP客户端** (`src/services/http/httpClient.ts`)
 ```typescript
-// src/services/arcService.ts
-// API配置
-const ARC_API_CONFIG = {
-  development: 'http://localhost:3000/api',
-  production: '/api'
-};
+class HttpClient {
+  private baseURL: string;
+  private defaultTimeout: number = 30000;
+  private tokenManager: TokenManager;
+  private isRefreshing: boolean = false;
+  private pendingRequests: PendingRequest[] = [];
 
-// 主要获取函数 - 遵循现有 localStorage 优先模式
-export const fetchArcPlans = async (): Promise<ArcPlan[]> => {
-  // 1. 优先从 localStorage 读取
-  const localArcPlans = localStorage.getItem('arcPlans');
-  if (localArcPlans) {
-    try {
-      const plans = JSON.parse(localArcPlans);
-      return validateAndTransformArcPlans(plans);
-    } catch (error) {
-      console.error('Failed to parse arc plans from localStorage:', error);
-    }
-  }
-
-  // 2. localStorage 无数据时，从 API 获取
-  try {
-    const plans = await fetchArcPlansFromAPI();
-    localStorage.setItem('arcPlans', JSON.stringify(plans));
-    return plans;
-  } catch (error) {
-    console.error('Failed to fetch arc plans from API:', error);
-    return [];
-  }
-};
-
-// 数据验证和转换
-const validateAndTransformArcPlans = (plans: any[]): ArcPlan[] => {
-  return plans.map(plan => ({
-    ...plan,
-    createdAt: new Date(plan.createdAt),
-    updatedAt: new Date(plan.updatedAt),
-    segments: plan.segments.map((seg: any) => ({
-      ...seg,
-      startTime: new Date(seg.startTime),
-      endTime: new Date(seg.endTime),
-      aosTime: new Date(seg.aosTime),
-      losTime: new Date(seg.losTime)
-    }))
-  }));
-};
-```
-
-#### 3.2.3 React Hook 封装
-
-```typescript
-// src/hooks/useArcService.ts
-export const useArcService = () => {
-  const [arcPlans, setArcPlans] = useState<ArcPlan[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // 加载弧段数据
-  const loadArcPlans = useCallback(async () => {
-    setLoading(true);
-    try {
-      const plans = await fetchArcPlans();
-      setArcPlans(plans);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // 从 API 强制刷新
-  const refreshFromAPI = useCallback(async () => {
-    setLoading(true);
-    try {
-      const plans = await fetchArcPlansFromAPI();
-      localStorage.setItem('arcPlans', JSON.stringify(plans));
-      setArcPlans(plans);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  return { arcPlans, loading, error, loadArcPlans, refreshFromAPI };
-};
-```
-
-#### 3.2.4 实时数据更新方案
-
-```typescript
-// src/services/arcPollingService.ts
-export class ArcPollingService {
-  private intervalId: NodeJS.Timeout | null = null;
-  private callbacks: Set<(plans: ArcPlan[]) => void> = new Set();
-  private lastUpdate: Date | null = null;
-
-  // 开始轮询（默认每分钟）
-  start(intervalMs: number = 60000) {
-    this.intervalId = setInterval(async () => {
-      try {
-        const plans = await fetchArcPlansFromAPI();
-        const latestUpdate = this.getLatestUpdateTime(plans);
-
-        if (!this.lastUpdate || latestUpdate > this.lastUpdate) {
-          this.lastUpdate = latestUpdate;
-          localStorage.setItem('arcPlans', JSON.stringify(plans));
-          this.notify(plans);
-        }
-      } catch (error) {
-        console.error('Polling failed:', error);
-      }
-    }, intervalMs);
-  }
-
-  // WebSocket 连接（用于高频率更新）
-  connectWebSocket(url: string) {
-    const ws = new WebSocket(url);
-    ws.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      if (message.type === 'arc:updated') {
-        const plans = message.data;
-        localStorage.setItem('arcPlans', JSON.stringify(plans));
-        this.notify(plans);
-      }
-    };
-    return ws;
-  }
+  // 核心请求方法，支持：
+  // - Token自动注入
+  // - 401自动重试
+  // - 超时控制
+  // - 响应头提取
+  async request<T>(endpoint: string, config: RequestConfig = {}): Promise<T>
 }
 ```
 
-### 3.3 API接口设计
+2. **Token管理器** (`src/services/http/tokenManager.ts`)
+```typescript
+class TokenManager {
+  // Token存储
+  setAccessToken(token: string, expiresIn?: number): void
+  getAccessToken(): string | null
+  isTokenExpired(): boolean
 
-#### RESTful API端点
-```
-GET    /api/arc-plans          // 获取弧段规划列表
-GET    /api/arc-plans/:id      // 获取特定弧段规划
-POST   /api/arc-plans          // 创建新弧段规划
-PUT    /api/arc-plans/:id      // 更新弧段规划
-DELETE /api/arc-plans/:id      // 删除弧段规划
+  // 自动登录凭证管理
+  setAutoLoginCredentials(username: string, password: string): void
+  getAutoLoginCredentials(): { username: string; password: string } | null
+}
 ```
 
-#### WebSocket事件
+3. **认证服务** (`src/services/authService.ts`)
+```typescript
+class AuthService {
+  // 登录（从响应头获取Token）
+  async login(account: string, password: string): Promise<LoginResponse>
+
+  // 自动登录
+  async autoLogin(forceRefresh: boolean = false): Promise<boolean>
+}
 ```
-arc:updated     // 弧段数据更新
-arc:activated   // 弧段激活
-arc:completed   // 弧段完成
-sat:position    // 卫星位置更新（高频）
+
+4. **弧段服务** (`src/services/arcService.ts`)
+```typescript
+class ArcService {
+  // 查询弧段（支持多参数筛选）
+  async fetchArcs(params: ArcQueryParams = {}): Promise<ArcSegment[]>
+
+  // 获取即将到来的弧段
+  async fetchUpcomingArcs(scid?: string, hours: number = 24): Promise<ArcSegment[]>
+
+  // 获取活跃弧段
+  async fetchActiveArcs(scid?: string): Promise<ArcSegment[]>
+}
+```
+
+#### 3.2.3 React Hook 封装（已实现）
+
+**1. 认证Hook** (`src/hooks/useAuth.ts`)
+```typescript
+export const useAuth = (): {
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+  login: (username: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  autoLogin: (forceRefresh?: boolean) => Promise<boolean>;
+}
+```
+
+**2. 弧段Hook** (`src/hooks/useArcService.ts`)
+```typescript
+export const useArcService = (): {
+  arcs: ArcSegment[];
+  upcomingArcs: ArcSegment[];
+  activeArcs: ArcSegment[];
+  isLoading: boolean;
+  error: string | null;
+  fetchArcs: (satelliteId?: string) => Promise<void>;
+  fetchUpcomingArcs: (satelliteId?: string, hours?: number) => Promise<void>;
+  fetchActiveArcs: (satelliteId?: string) => Promise<void>;
+  refresh: () => Promise<void>;
+}
+```
+
+#### 3.2.4 401自动重试机制（已实现）
+
+当收到401响应时，系统自动执行以下流程：
+
+1. 检查是否已在刷新Token，避免重复刷新
+2. 将当前请求加入等待队列
+3. 调用`authService.autoLogin(true)`强制重新认证
+4. 认证成功后，重试原请求和所有排队的请求
+5. 认证失败，拒绝所有排队的请求
+
+#### 3.2.5 缓存策略（已实现）
+
+所有数据服务统一采用以下缓存策略：
+
+| 服务 | 缓存键 | 默认时长 | 降级策略 |
+|------|--------|----------|----------|
+| 卫星数据 | `api_satellites` | 1小时 | 无 |
+| 弧段数据 | `api_arcs` | 5分钟 | 使用缓存 |
+
+缓存结构：
+```typescript
+{
+  data: T[];
+  timestamp: number;  // 用于判断缓存是否过期
+}
+```
+
+#### 3.2.6 轮询机制（已实现）
+
+应用启动后，弧段数据会定时轮询更新：
+
+- **轮询间隔**: 60秒（可通过环境变量配置）
+- **触发条件**: 应用初始化完成后自动启动
+- **实现位置**: `src/components/AppInitializer.tsx`
+
+### 3.3 API接口设计 ✅ 已实现
+
+#### PurestAdmin API 端点（已实现）
+```
+# 认证
+POST   /auth/login                     # 用户登录（Token在响应头accesstoken中）
+
+# 卫星数据
+GET    /satelite/paged-list            # 获取卫星列表（分页）
+       参数: pageIndex, pageSize
+
+# 弧段数据
+GET    /arc/paged-list                 # 获取弧段列表（分页）
+       参数: pageIndex, pageSize, scid, satName, channelType,
+             siteName, startTimeBegin, startTimeEnd,
+             endTimeBegin, endTimeEnd
+
+# 遥测数据
+GET    /tm-unit/paged-list             # 获取遥测单元列表
+       参数: pageIndex, pageSize, groupId
+```
+
+#### 认证方式
+
+**登录请求：**
+```http
+POST /auth/login
+Content-Type: application/json
+
+{
+  "account": "admin",
+  "password": "123456"
+}
+```
+
+**登录响应：**
+```http
+HTTP/1.1 200 OK
+accesstoken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+
+{
+  "id": 1,
+  "name": "管理员"
+}
+```
+
+**普通请求：**
+```http
+GET /satelite/paged-list?pageIndex=1&pageSize=200
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+#### 分页响应格式
+```typescript
+{
+  pageIndex: number;
+  pageSize: number;
+  total: number;
+  pageCount: number;
+  items: T[];      // 或 data: T[]
+}
 ```
 
 ### 3.3 组件架构
@@ -386,28 +564,52 @@ src/components/
     └── 相关卫星信息链接
 ```
 
-#### 新增服务列表
+#### 新增服务列表 ✅ 已实现 / 规划中
+
 ```
 src/services/
-├── arcService.ts             // 弧段数据服务
-│   ├── HTTP 请求封装
-│   ├── localStorage 缓存管理
-│   ├── 数据验证和转换
-│   └── 与现有 satelliteService 对接
-├── arcPollingService.ts      // 实时更新服务
+├── http/
+│   ├── httpClient.ts         // ✅ HTTP客户端 - 统一的fetch封装
+│   │   ├── Token自动注入
+│   │   ├── 401自动重试
+│   │   ├── 超时控制
+│   │   └── 响应头提取
+│   └── tokenManager.ts       // ✅ Token管理器
+│       ├── JWT Token存储
+│       ├── 过期检查
+│       └── 自动登录凭证管理
+├── authService.ts            // ✅ 认证服务
+│   ├── 用户登录/登出
+│   ├── 认证状态检查
+│   └── 自动登录
+├── satelliteApiService.ts    // ✅ 卫星API服务
+│   ├── 获取卫星列表（分页）
+│   ├── 根据ID获取单个卫星
+│   └── 缓存机制
+├── arcService.ts             // ✅ 弧段数据服务
+│   ├── 查询弧段列表
+│   ├── 获取即将到来的弧段
+│   ├── 获取活跃弧段
+│   └── 缓存降级策略
+├── satelliteMappingService.ts // ✅ 卫星映射服务
+│   ├── API与TLE数据关联
+│   └── 命名映射更新
+├── telemetryService.ts       // ✅ 遥测服务
+│   └── 遥测单元数据获取
+├── arcPollingService.ts      // ⏳ 实时更新服务（规划中）
 │   ├── 定时轮询机制
 │   ├── WebSocket 连接管理
 │   ├── 自动重连逻辑
 │   └── 更新通知分发
-├── speechService.ts          // 语音播报服务
+├── speechService.ts          // ⏳ 语音播报服务（规划中）
 │   ├── Web Speech API 封装
 │   ├── 语音队列管理
 │   ├── 多语言支持
 │   └── 音量控制接口
-├── geoDataService.ts         // 地理数据服务
+├── geoDataService.ts         // ⏳ 地理数据服务（规划中）
 │   ├── GeoJSON 数据加载
 │   ├── 坐标系转换
-│   ├── 数据缓存管理
+│   └── 数据缓存管理
 │   └── SAA 区域定义
 └── notificationService.ts    // 通知服务
     ├── 弧段提醒管理
@@ -415,35 +617,42 @@ src/services/
     └── 用户偏好设置
 ```
 
-#### 新增Hooks列表
+#### 新增Hooks列表 ✅ 已实现 / 规划中
 ```
 src/hooks/
-├── useArcService.ts          // 弧段数据管理
+├── useAuth.ts                // ✅ 认证管理
+│   ├── 登录/登出/自动登录
+│   ├── 认证状态管理
+│   └── 错误处理
+├── useArcService.ts          // ✅ 弧段数据管理
 │   ├── 封装 arcService 调用
 │   ├── 状态管理（loading/error）
-│   ├── 自动刷新机制
-│   └── 与 useSatelliteManager 集成
-├── useArcSegments.ts         // 弧段计算逻辑
+│   ├── 获取即将到来的弧段
+│   └── 获取活跃弧段
+├── useSatelliteManager.ts    // ✅ 卫星管理（已更新）
+│   ├── 集成API数据过滤
+│   └── 使用API卫星名称
+├── useArcSegments.ts         // ⏳ 弧段计算逻辑（规划中）
 │   ├── 激活弧段筛选
 │   ├── 时间窗口计算
 │   ├── 与时间模拟系统集成
 │   └── 连线状态判断
-├── useSpeechSynthesis.ts     // 语音合成
+├── useSpeechSynthesis.ts     // ⏳ 语音合成（规划中）
 │   ├── 语音播报控制
 │   ├── 队列管理
 │   ├── 权限检查
 │   └── 设置同步
-├── useGeographicData.ts      // 地理数据加载
+├── useGeographicData.ts      // ⏳ 地理数据加载（规划中）
 │   ├── 数据懒加载
 │   ├── 缓存管理
 │   ├── 错误重试
 │   └── 样式应用
-├── useCountdown.ts           // 倒计时逻辑
+├── useCountdown.ts           // ⏳ 倒计时逻辑（规划中）
 │   ├── 高精度时间计算
 │   ├── 暂停/恢复支持
 │   ├── 格式化输出
 │   └── 事件回调
-└── useSettings.ts            // 新功能设置
+└── useSettings.ts            // ⏳ 新功能设置（规划中）
     ├── localStorage 同步
     ├── 默认值管理
     ├── 设置验证

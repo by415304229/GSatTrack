@@ -1,11 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import useSatelliteManager from '../hooks/useSatelliteManager';
 import { useTimeSimulation } from '../hooks/useTimeSimulation';
+import useArcMonitor from '../hooks/useArcMonitor';
+import { useSpeechSynthesis } from '../hooks/useSpeechSynthesis';
+import speechNotificationService from '../services/speechNotificationService';
+import { loadArcVisibilityConfig } from '../utils/storage';
+import type { ArcVisualizationConfig } from '../types/arc.types';
 
 import Header from '../components/Header';
 import MainContent from '../components/MainContent';
 import { SettingsPanel } from '../components/SettingsPanel';
 import TLEImportModal from '../components/TLEImportModal';
+import { ArcForecastBanner } from '../components/arc/ArcForecastBanner';
 
 const HomePage: React.FC = () => {
     // 状态管理
@@ -19,6 +25,26 @@ const HomePage: React.FC = () => {
         refreshGroups,
         onSatellitePropertyChange
     } = useSatelliteManager();
+
+    // 弧段监控
+    const arcMonitor = useArcMonitor({ lookAheadHours: 24, maxDisplayCount: 4, enabled: true });
+
+    // 语音播报
+    const speech = useSpeechSynthesis();
+
+    // 弧段可视化配置
+    const [arcVisualizationConfig, setArcVisualizationConfig] = useState<ArcVisualizationConfig>(() => {
+        const saved = loadArcVisibilityConfig() as ArcVisualizationConfig | null;
+        return saved || {
+            enabled: true,
+            showActiveOnly: false,
+            activeColor: '#10b981',
+            upcomingColor: 'rgba(6, 182, 212, 0.5)',
+            lineWidth: 1.5,
+            animate: true,
+            pulseSpeed: 1
+        };
+    });
 
     const [stations, setStations] = useState<Array<{
         id: string;
@@ -90,6 +116,28 @@ const HomePage: React.FC = () => {
         refreshGroups();
     };
 
+    // 语音通知检查 - 每5秒检查一次
+    useEffect(() => {
+        const interval = setInterval(() => {
+            speechNotificationService.checkAndNotify(
+                arcMonitor.displayArcs,
+                speech.config
+            );
+        }, 5000);
+
+        return () => clearInterval(interval);
+    }, [arcMonitor.displayArcs, speech.config]);
+
+    // 弧段可视化配置变更处理
+    const handleArcVisualizationConfigChange = (config: Partial<ArcVisualizationConfig>) => {
+        setArcVisualizationConfig(prev => {
+            const updated = { ...prev, ...config };
+            // 保存到本地存储
+            localStorage.setItem('gsat_arc_visibility_config', JSON.stringify(updated));
+            return updated;
+        });
+    };
+
     return (
         <div className="flex flex-col h-screen w-screen bg-[#020617] text-slate-100 overflow-hidden font-sans">
             <Header
@@ -121,6 +169,15 @@ const HomePage: React.FC = () => {
                 orbitWindowMinutes={orbitWindowMinutes}
                 selectedSatellites={selectedSatellites}
                 timeRate={timeRate}
+                arcs={arcMonitor.displayArcs}
+                arcVisualizationConfig={arcVisualizationConfig}
+            />
+
+            {/* 弧段预报横幅 */}
+            <ArcForecastBanner
+                arcs={arcMonitor.displayArcs}
+                isLoading={arcMonitor.isLoading}
+                error={arcMonitor.error}
             />
 
             <SettingsPanel
@@ -145,6 +202,11 @@ const HomePage: React.FC = () => {
                     toggleSatellite(satId);
                 }}
                 onSatellitePropertyChange={onSatellitePropertyChange}
+                speechConfig={speech.config}
+                onSpeechConfigChange={speech.updateConfig}
+                onTestSpeech={speech.testSpeech}
+                arcVisualizationConfig={arcVisualizationConfig}
+                onArcVisualizationConfigChange={handleArcVisualizationConfigChange}
             />
 
             <TLEImportModal

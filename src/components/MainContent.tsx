@@ -1,6 +1,7 @@
 import { RefreshCw } from 'lucide-react';
 import React from 'react';
 import { PlaneMonitor } from './PlaneMonitor';
+import type { ArcSegment, ArcVisualizationConfig } from '../types/arc.types';
 
 interface MainContentProps {
   loading: boolean;
@@ -28,6 +29,9 @@ interface MainContentProps {
   orbitWindowMinutes: number;
   selectedSatellites: Set<string>;
   timeRate?: number;
+  // 弧段数据
+  arcs?: ArcSegment[];
+  arcVisualizationConfig?: ArcVisualizationConfig;
 }
 
 const MainContent: React.FC<MainContentProps> = ({
@@ -39,7 +43,9 @@ const MainContent: React.FC<MainContentProps> = ({
   viewMode,
   orbitWindowMinutes,
   selectedSatellites,
-  timeRate
+  timeRate,
+  arcs,
+  arcVisualizationConfig
 }) => {
   if (loading) {
     return (
@@ -69,6 +75,8 @@ const MainContent: React.FC<MainContentProps> = ({
                 orbitWindowMinutes={orbitWindowMinutes}
                 selectedSatellites={selectedSatellites}
                 timeRate={timeRate}
+                arcs={arcs}
+                arcVisualizationConfig={arcVisualizationConfig}
               />
             </div>
           );

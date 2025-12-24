@@ -1,13 +1,17 @@
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { type GroundStation, type SatellitePos } from '../types';
 import { calculateTerminatorCoordinates } from '../utils/satMath';
+import { calculateArcConnections2D } from '../utils/arcVisualization';
+import type { ArcSegment, ArcVisualizationConfig } from '../types/arc.types';
 
 interface map2dprops {
     satellites: SatellitePos[];
     groundStations: GroundStation[];
     onSatClick?: (sat: SatellitePos) => void;
     simulatedTime: Date;
+    arcs?: ArcSegment[];
+    arcVisualizationConfig?: ArcVisualizationConfig;
 }
 
 interface hoverdata {
@@ -59,12 +63,30 @@ const Tooltip = ({ data }: { data: hoverdata }) => {
 
 
 
-const Map2D: React.FC<map2dprops> = ({ satellites, groundStations, onSatClick, simulatedTime }) => {
+const Map2D: React.FC<map2dprops> = ({
+    satellites,
+    groundStations,
+    onSatClick,
+    simulatedTime,
+    arcs = [],
+    arcVisualizationConfig
+}) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const imageRef = useRef<HTMLImageElement | null>(null);
     const lightsImageRef = useRef<HTMLImageElement | null>(null);
     const [hoverData, setHoverData] = useState<hoverdata | null>(null);
+
+    // 默认弧段可视化配置
+    const defaultArcConfig: ArcVisualizationConfig = useMemo(() => ({
+        enabled: true,
+        showActiveOnly: false,
+        activeColor: '#10b981',
+        upcomingColor: 'rgba(6, 182, 212, 0.5)',
+        lineWidth: 1.5,
+        animate: true,
+        pulseSpeed: 1
+    }), []);
 
     // Load Earth Map Images
     useEffect(() => {
@@ -265,6 +287,41 @@ const Map2D: React.FC<map2dprops> = ({ satellites, groundStations, onSatClick, s
             for (let y = 0; y <= h; y += h / 6) { ctx.moveTo(0, y); ctx.lineTo(w, y); }
             ctx.stroke();
 
+            // Arc Connections (弧段连线)
+            if (arcs && arcVisualizationConfig?.enabled) {
+                const connections = calculateArcConnections2D(
+                    arcs,
+                    satellites,
+                    groundStations,
+                    simulatedTime,
+                    w,
+                    h,
+                    arcVisualizationConfig
+                );
+
+                connections.forEach(conn => {
+                    ctx.beginPath();
+                    ctx.moveTo(conn.satellite.x, conn.satellite.y);
+                    ctx.lineTo(conn.station.x, conn.station.y);
+
+                    // 设置样式
+                    const color = conn.isActive ? conn.color : conn.color.replace(/[\d.]+\)$/, '0.3)');
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = conn.isActive ? (arcVisualizationConfig.lineWidth || 1.5) : 1;
+
+                    // 添加发光效果
+                    if (conn.isActive) {
+                        ctx.shadowColor = conn.color;
+                        ctx.shadowBlur = 10;
+                    }
+
+                    ctx.stroke();
+
+                    // 重置shadow
+                    ctx.shadowBlur = 0;
+                });
+            }
+
             // Orbits
             ctx.globalAlpha = 0.6;
             ctx.lineWidth = 1.5;
@@ -344,7 +401,7 @@ const Map2D: React.FC<map2dprops> = ({ satellites, groundStations, onSatClick, s
 
         render();
         return () => cancelAnimationFrame(animationFrameId);
-    }, [satellites, groundStations, hoverData, simulatedTime]);
+    }, [satellites, groundStations, hoverData, simulatedTime, arcs, arcVisualizationConfig, defaultArcConfig]);
 
     // Interaction
     const findObjectAtPos = (clientX: number, clientY: number): hoverdata | null => {

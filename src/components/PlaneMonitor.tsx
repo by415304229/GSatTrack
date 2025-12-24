@@ -5,6 +5,7 @@ import { calculateOrbitPath, getSatellitePosition } from '../utils/satMath';
 import Earth3D from './Earth3D';
 import Map2D from './Map2D';
 import SatelliteDetail from './SatelliteDetail';
+import type { ArcSegment, ArcVisualizationConfig } from '../types/arc.types';
 
 const ORBIT_COLORS = ['#06b6d4', '#3b82f6'];
 
@@ -17,6 +18,9 @@ interface PlaneMonitorProps {
     orbitWindowMinutes: number;
     selectedSatellites: Set<string>;
     timeRate?: number;
+    // 弧段数据
+    arcs?: ArcSegment[];
+    arcVisualizationConfig?: ArcVisualizationConfig;
 }
 
 export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
@@ -27,7 +31,9 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
     viewMode = 'split',
     orbitWindowMinutes,
     selectedSatellites,
-    timeRate = 1
+    timeRate = 1,
+    arcs,
+    arcVisualizationConfig
 }) => {
     const [satellites, setSatellites] = useState<SatellitePos[]>([]);
     const [selectedSatId, setSelectedSatId] = useState<string | null>(null);
@@ -175,6 +181,8 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
                                 simulatedTime={simulatedTime}
                                 isTracking={isTracking}
                                 trackedSatellite={trackedSat}
+                                arcs={arcs}
+                                arcVisualizationConfig={arcVisualizationConfig}
                             />
                         </div>
                     </div>
@@ -192,6 +200,8 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
                                 groundStations={groundStations}
                                 onSatClick={handleSatClick}
                                 simulatedTime={simulatedTime}
+                                arcs={arcs}
+                                arcVisualizationConfig={arcVisualizationConfig}
                             />
                         </div>
                     </div>
@@ -212,6 +222,8 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
                                     simulatedTime={simulatedTime}
                                     isTracking={isTracking}
                                     trackedSatellite={trackedSat}
+                                    arcs={arcs}
+                                    arcVisualizationConfig={arcVisualizationConfig}
                                 />
                             </div>
                         </div>
@@ -226,6 +238,8 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
                                     groundStations={groundStations}
                                     onSatClick={handleSatClick}
                                     simulatedTime={simulatedTime}
+                                    arcs={arcs}
+                                    arcVisualizationConfig={arcVisualizationConfig}
                                 />
                             </div>
                         </div>

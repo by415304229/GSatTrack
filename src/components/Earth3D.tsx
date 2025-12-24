@@ -6,6 +6,9 @@ import React, { Suspense, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { type GroundStation, type SatellitePos } from '../types';
 import { calculateSunPosition, latLonToScene } from '../utils/satMath';
+import { ArcConnections3D } from './arc/ArcConnections3D';
+import { calculateArcConnections3D } from '../utils/arcVisualization';
+import type { ArcSegment, ArcVisualizationConfig } from '../types/arc.types';
 
 // Earth Radius in scene units
 const R = 1;
@@ -17,6 +20,8 @@ interface earthprops {
   simulatedTime?: Date;
   isTracking?: boolean;
   trackedSatellite?: SatellitePos | null;
+  arcs?: ArcSegment[];
+  arcVisualizationConfig?: ArcVisualizationConfig;
 }
 
 const Atmosphere = () => {
@@ -302,13 +307,48 @@ const OrbitLine: React.FC<{ path: { x: number, y: number, z: number }[], color: 
   );
 };
 
-const Earth3D: React.FC<earthprops> = ({ satellites, groundStations, onSatClick, simulatedTime = new Date(), isTracking = false, trackedSatellite = null }) => {
+const Earth3D: React.FC<earthprops> = ({
+  satellites,
+  groundStations,
+  onSatClick,
+  simulatedTime = new Date(),
+  isTracking = false,
+  trackedSatellite = null,
+  arcs = [],
+  arcVisualizationConfig
+}) => {
   const [hoverData, setHoverData] = useState<hoverdata | null>(null);
 
   // Calculate sun position based on simulated time
   const sunPosition = useMemo(() => {
     return calculateSunPosition(simulatedTime);
   }, [simulatedTime]);
+
+  // 默认弧段可视化配置
+  const defaultArcConfig: ArcVisualizationConfig = {
+    enabled: true,
+    showActiveOnly: false,
+    activeColor: '#10b981',
+    upcomingColor: 'rgba(6, 182, 212, 0.5)',
+    lineWidth: 1.5,
+    animate: true,
+    pulseSpeed: 1
+  };
+
+  // 计算弧段连线
+  const arcConnections = useMemo(() => {
+    if (!arcs || arcs.length === 0 || !arcVisualizationConfig?.enabled) {
+      return [];
+    }
+    const config = arcVisualizationConfig || defaultArcConfig;
+    return calculateArcConnections3D(
+      arcs,
+      satellites,
+      groundStations,
+      simulatedTime,
+      config
+    );
+  }, [arcs, satellites, groundStations, simulatedTime, arcVisualizationConfig, defaultArcConfig]);
 
   // Camera follow component - must be inside Canvas
   const CameraFollow = () => {
@@ -412,6 +452,14 @@ const Earth3D: React.FC<earthprops> = ({ satellites, groundStations, onSatClick,
           />
 
           <GroundStationMarkers stations={groundStations} onHover={setHoverData} />
+
+          {/* 弧段连线 */}
+          {arcConnections.length > 0 && arcVisualizationConfig?.enabled && (
+            <ArcConnections3D
+              connections={arcConnections}
+              lineWidth={arcVisualizationConfig.lineWidth}
+            />
+          )}
 
           {satellites.map((sat, index) => (
             sat.orbitPath && sat.orbitPath.length > 0 && (

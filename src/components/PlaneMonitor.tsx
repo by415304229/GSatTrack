@@ -53,7 +53,7 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
             .filter(tle => selectedSatellites.size === 0 || selectedSatellites.has(tle.satId)) // 过滤选中的卫星
             .map((tle, idx) => {
                 // Use simulatedTime instead of new Date()
-                const pos = getSatellitePosition({ line1: tle.line1!, line2: tle.line2!, satId: tle.satId!, name: tle.name, updatedAt: new Date() }, simulatedTime);
+                const pos = getSatellitePosition({ line1: tle.line1!, line2: tle.line2!, satId: tle.satId!, name: tle.name, displayName: tle.displayName, updatedAt: new Date() }, simulatedTime);
                 if (pos) {
                     // 所有卫星都计算轨道，不再限制数量
                     const satId = tle.satId;

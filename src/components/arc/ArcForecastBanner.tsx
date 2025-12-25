@@ -6,10 +6,12 @@
 import { Clock, Radio, X } from 'lucide-react';
 import React, { useState } from 'react';
 import type { ArcWithStatus } from '../../types/arc.types';
+import { extractCityName } from '../../utils/arcVisualization';
 
 interface ArcForecastBannerProps {
   arcs: ArcWithStatus[];
   isLoading?: boolean;
+  isRefreshing?: boolean;
   error?: string | null;
 }
 
@@ -38,14 +40,20 @@ interface ArcBarItemProps {
 }
 
 const ArcBarItem: React.FC<ArcBarItemProps> = ({ arc, onClose }) => {
+  // 提取城市名，如 "库尔勒信关站" -> "库尔勒"
+  const cityName = extractCityName(arc.siteName) || arc.siteName;
+
   return (
-    <div className="bg-[#020617]/60 backdrop-blur border border-slate-700/50 rounded-lg px-3 py-2 shadow-lg">
-      <div className="flex items-center gap-2 text-xs">
+    <div className="bg-[#020617]/60 backdrop-blur border border-slate-700/50 rounded-lg px-4 py-2.5 shadow-lg">
+      <div className="flex items-center gap-8 text-xs">
         <Radio size={12} className="text-cyan-400 animate-pulse shrink-0" />
-        <span className="text-slate-300 flex-1 whitespace-nowrap">
-          {arc.satName}→{arc.siteName}
+        <span className="text-slate-300 whitespace-nowrap">
+          {arc.satName}
         </span>
-        <span className="text-emerald-400 font-mono font-bold tabular-nums">
+        <span className="text-cyan-400 whitespace-nowrap">
+          {cityName}
+        </span>
+        <span className="text-emerald-400 font-mono font-bold tabular-nums text-sm ml-auto">
           {formatCountdownShort(arc.timeToStart)}
         </span>
         <button
@@ -68,6 +76,7 @@ const ArcBarItem: React.FC<ArcBarItemProps> = ({ arc, onClose }) => {
 export const ArcForecastBanner: React.FC<ArcForecastBannerProps> = ({
   arcs,
   isLoading = false,
+  isRefreshing = false,
   error = null
 }) => {
   // 跟踪被用户关闭的弧段ID
@@ -100,9 +109,12 @@ export const ArcForecastBanner: React.FC<ArcForecastBannerProps> = ({
     return null;
   }
 
+  // 只在首次加载（不是后台刷新）且没有数据时显示 loading
+  const shouldShowLoading = isLoading && !isRefreshing && displayArcs.length === 0;
+
   return (
     <div className="fixed top-20 left-1/2 -translate-x-1/2 z-20 flex flex-col gap-2">
-      {isLoading ? (
+      {shouldShowLoading ? (
         <div className="bg-[#020617]/60 backdrop-blur border border-slate-700/50 rounded-lg px-4 py-2 shadow-lg">
           <span className="text-xs text-slate-500">加载中...</span>
         </div>

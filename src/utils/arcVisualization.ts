@@ -5,6 +5,7 @@
 
 import type { ArcSegment } from '../services/types/api.types';
 import type { ArcVisualizationConfig } from '../types/arc.types';
+import satelliteMappingService from '../services/satelliteMappingService';
 
 /**
  * 3D点坐标
@@ -48,6 +49,8 @@ export interface ArcConnection2D {
  */
 export interface SatellitePosition {
   id: string;
+  name: string;
+  displayName?: string;
   x: number;
   y: number;
   z: number;
@@ -62,6 +65,46 @@ export interface GroundStationData {
   name: string;
   lat: number;
   lon: number;
+}
+
+/**
+ * SiteName 映射表
+ * API 提供的名称（如 "东北信关站-东北信关天线2"）映射到标准城市名
+ * 需要与 HomePage 中的 stations.name 保持一致
+ */
+const SITE_NAME_MAPPING: Record<string, string> = {
+  '东北': '抚远',
+  '东北信关站': '抚远',
+  '库尔勒': '库尔勒',
+  '库尔勒信关站': '库尔勒',
+  '新疆': '库尔勒',
+  '新疆信关站': '库尔勒',
+  '上海': '上海',
+  '上海信关站': '上海',
+  '吉隆坡': '吉隆坡',
+  '吉隆坡信关站': '吉隆坡'
+};
+
+/**
+ * 从 API 提供的 SiteName 中提取标准城市名
+ * @param apiSiteName API 提供的站点名称，如 "东北信关站-东北信关天线2"
+ * @returns 标准化的城市名，如 "抚远"
+ */
+export function extractCityName(apiSiteName: string): string | null {
+  // 直接查找
+  if (apiSiteName in SITE_NAME_MAPPING) {
+    return SITE_NAME_MAPPING[apiSiteName];
+  }
+
+  // 尝试从名称中提取关键词
+  for (const [key, value] of Object.entries(SITE_NAME_MAPPING)) {
+    if (apiSiteName.includes(key)) {
+      return value;
+    }
+  }
+
+  console.warn(`[arcVisualization] 未找到站点映射: ${apiSiteName}`);
+  return null;
 }
 
 /**
@@ -98,7 +141,7 @@ export const calculateArcConnections3D = (
 ): ArcConnection3D[] => {
   const connections: ArcConnection3D[] = [];
 
-  // 创建卫星位置映射
+  // 创建卫星位置映射 - 使用 NORAD ID (即 sat.id)
   const satPosMap = new Map<string, Point3D>();
   satellites.forEach(sat => {
     satPosMap.set(sat.id, { x: sat.x, y: sat.y, z: sat.z });
@@ -118,18 +161,37 @@ export const calculateArcConnections3D = (
       return;
     }
 
-    const satPos = satPosMap.get(arc.scid);
-    const stationPos = stationPosMap.get(arc.siteName);
-
-    if (satPos && stationPos) {
-      const isActive = isArcActive(arc, currentTime);
-      connections.push({
-        satellite: satPos,
-        station: stationPos,
-        isActive,
-        color: isActive ? config.activeColor : config.upcomingColor
-      });
+    // 通过 SCID 获取对应的 NORAD ID
+    const noradId = satelliteMappingService.getNoradIdByScid(arc.scid);
+    if (!noradId) {
+      return;
     }
+
+    // 使用 NORAD ID 查找卫星位置
+    const satPos = satPosMap.get(noradId);
+    if (!satPos) {
+      return;
+    }
+
+    // 从 API 的 siteName 中提取标准城市名
+    const cityName = extractCityName(arc.siteName);
+    if (!cityName) {
+      return;
+    }
+
+    // 使用标准城市名查找地面站位置
+    const stationPos = stationPosMap.get(cityName);
+    if (!stationPos) {
+      return;
+    }
+
+    const isActive = isArcActive(arc, currentTime);
+    connections.push({
+      satellite: satPos,
+      station: stationPos,
+      isActive,
+      color: isActive ? config.activeColor : config.upcomingColor
+    });
   });
 
   return connections;
@@ -157,7 +219,7 @@ export const calculateArcConnections2D = (
 ): ArcConnection2D[] => {
   const connections: ArcConnection2D[] = [];
 
-  // 创建卫星位置映射（2D坐标）
+  // 创建卫星位置映射（2D坐标） - 使用 NORAD ID (即 sat.id)
   const satPosMap = new Map<string, Point2D>();
   satellites.forEach(sat => {
     if (sat.lat !== undefined && sat.lon !== undefined) {
@@ -181,18 +243,37 @@ export const calculateArcConnections2D = (
       return;
     }
 
-    const satPos = satPosMap.get(arc.scid);
-    const stationPos = stationPosMap.get(arc.siteName);
-
-    if (satPos && stationPos) {
-      const isActive = isArcActive(arc, currentTime);
-      connections.push({
-        satellite: satPos,
-        station: stationPos,
-        isActive,
-        color: isActive ? config.activeColor : config.upcomingColor
-      });
+    // 通过 SCID 获取对应的 NORAD ID
+    const noradId = satelliteMappingService.getNoradIdByScid(arc.scid);
+    if (!noradId) {
+      return;
     }
+
+    // 使用 NORAD ID 查找卫星位置
+    const satPos = satPosMap.get(noradId);
+    if (!satPos) {
+      return;
+    }
+
+    // 从 API 的 siteName 中提取标准城市名
+    const cityName = extractCityName(arc.siteName);
+    if (!cityName) {
+      return;
+    }
+
+    // 使用标准城市名查找地面站位置
+    const stationPos = stationPosMap.get(cityName);
+    if (!stationPos) {
+      return;
+    }
+
+    const isActive = isArcActive(arc, currentTime);
+    connections.push({
+      satellite: satPos,
+      station: stationPos,
+      isActive,
+      color: isActive ? config.activeColor : config.upcomingColor
+    });
   });
 
   return connections;

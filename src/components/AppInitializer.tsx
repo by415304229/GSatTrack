@@ -35,7 +35,6 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
     // 立即执行一次（初始化时已经执行过了，所以这里可以跳过）
     // 然后定时执行
     pollingTimerRef.current = window.setInterval(async () => {
-      console.log('[AppInitializer] 定时轮询弧段数据...');
       try {
         await fetchUpcomingArcs();
       } catch (error) {
@@ -69,11 +68,9 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
     const initialize = async () => {
       // 标记开始初始化
       isInitializing.current = true;
-      console.log('[AppInitializer] 开始应用初始化...');
 
       try {
         // 始终尝试重新登录以获取最新token（强制刷新）
-        console.log('[AppInitializer] 尝试自动登录以获取最新token...');
         setInitStatus('正在登录...');
         const loginSuccess = await autoLogin(true);
 
@@ -83,7 +80,6 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
           return;
         }
 
-        console.log('[AppInitializer] 自动登录成功');
         // 登录成功后加载数据
         await loadData();
 
@@ -100,15 +96,11 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
       try {
         // 加载卫星数据
         setInitStatus('正在加载卫星数据...');
-        console.log('[AppInitializer] 加载卫星数据...');
-        const satellites = await satelliteApiService.fetchSatellites();
-        console.log('[AppInitializer] 卫星数据加载完成，数量:', satellites.length);
+        await satelliteApiService.fetchSatellites();
 
         // 加载弧段数据
         setInitStatus('正在加载弧段数据...');
-        console.log('[AppInitializer] 加载弧段数据...');
         await fetchUpcomingArcs();
-        console.log('[AppInitializer] 弧段数据加载完成');
 
         setInitStatus('');
 
@@ -119,7 +111,6 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
       } catch (error) {
         console.error('[AppInitializer] 数据加载失败:', error);
         // 数据加载失败不阻止应用启动
-        console.warn('[AppInitializer] 数据加载失败，但应用将继续运行');
       }
     };
 

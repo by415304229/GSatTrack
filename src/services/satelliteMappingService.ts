@@ -66,6 +66,28 @@ class SatelliteMappingService {
   }
 
   /**
+   * 根据SCID查找卫星
+   * @param scid SCID（字符串格式，可能包含括号如 "8197(2005H)"）
+   * @returns 卫星数据或null
+   */
+  findByScid(scid: string): APISatellite | null {
+    // 提取 SCID 的数字部分（去掉括号内容）
+    // 例如: "8197(2005H)" -> "8197"
+    const scidNumber = scid.split('(')[0];
+    return this.apiSatellites.find(s => s.scid?.toString() === scidNumber) || null;
+  }
+
+  /**
+   * 根据SCID获取对应的NORAD ID
+   * @param scid SCID（字符串格式，可能包含括号如 "8197(2005H)"）
+   * @returns NORAD ID（字符串格式）或null
+   */
+  getNoradIdByScid(scid: string): string | null {
+    const satellite = this.findByScid(scid);
+    return satellite?.nordID?.toString() || null;
+  }
+
+  /**
    * 获取已映射的NORAD ID列表
    * @returns NORAD ID字符串数组
    */

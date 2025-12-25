@@ -136,7 +136,7 @@ export const calculateTerminatorCoordinates = (time: Date, width: number, height
 };
 
 
-export const getSatellitePosition = (tle: TLEData, date: Date): { id: string; name: string; x: number; y: number; z: number; lat: number; lon: number; alt: number; velocity: number; orbitPath?: { x: number, y: number, z: number, lat: number, lon: number }[]; color?: string; tle?: TLEData } | null => {
+export const getSatellitePosition = (tle: TLEData, date: Date): { id: string; name: string; displayName?: string; x: number; y: number; z: number; lat: number; lon: number; alt: number; velocity: number; orbitPath?: { x: number, y: number, z: number, lat: number, lon: number }[]; color?: string; tle?: TLEData } | null => {
   try {
     const satrec = satellite.twoline2satrec(tle.line1, tle.line2);
 
@@ -177,6 +177,7 @@ export const getSatellitePosition = (tle: TLEData, date: Date): { id: string; na
     return {
       id: tle.satId,
       name: tle.name,
+      displayName: tle.displayName,
       x: scenePos.x,
       y: scenePos.y,
       z: scenePos.z,

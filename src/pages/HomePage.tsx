@@ -37,7 +37,7 @@ const HomePage: React.FC = () => {
             enabled: true,
             showActiveOnly: false,
             activeColor: '#10b981',
-            upcomingColor: 'rgba(6, 182, 212, 0.5)',
+            upcomingColor: '#06b6d4',
             lineWidth: 1.5,
             animate: true,
             pulseSpeed: 1
@@ -50,20 +50,36 @@ const HomePage: React.FC = () => {
         lat: number;
         lon: number;
         color: string;
-    }>>([{
-        id: 'gs-1',
-        name: 'Shanghai',
-        lat: 31.2304,
-        lon: 121.4737,
-        color: '#10b981'
-    },
-    {
-        id: 'gs-2',
-        name: 'London',
-        lat: 51.5074,
-        lon: -0.1278,
-        color: '#f59e0b'
-    }]);
+    }>>([
+        {
+            id: 'gs-korla',
+            name: '库尔勒',
+            lat: 41.549000,
+            lon: 86.233000,
+            color: '#10b981'
+        },
+        {
+            id: 'gs-shanghai',
+            name: '上海',
+            lat: 30.968500,
+            lon: 121.247000,
+            color: '#f59e0b'
+        },
+        {
+            id: 'gs-fuyuan',
+            name: '抚远',
+            lat: 47.997000,
+            lon: 134.055000,
+            color: '#8b5cf6'
+        },
+        {
+            id: 'gs-kl',
+            name: '吉隆坡',
+            lat: 2.610214,
+            lon: 101.956915,
+            color: '#ec4899'
+        }
+    ]);
 
     // 使用自定义时间模拟钩子
     const {
@@ -181,6 +197,7 @@ const HomePage: React.FC = () => {
             <ArcForecastBanner
                 arcs={arcMonitor.displayArcs}
                 isLoading={arcMonitor.isLoading}
+                isRefreshing={arcMonitor.isRefreshing}
                 error={arcMonitor.error}
             />
 

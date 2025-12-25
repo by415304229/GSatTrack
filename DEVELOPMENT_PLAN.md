@@ -166,15 +166,52 @@ VITE_CACHE_DURATION_SATELLITE=3600000
    - 自动更新倒计时
    - 加载和错误状态管理
 
-##### 2.1.4 语音播报系统
-- 实现Web Speech API封装服务（`src/services/speechService.ts`）
-- 支持中英文语音播报
-- **设计决策**：
-  - 入境提醒基于系统时间（与弧段状态保持一致）
-  - 使用定时器检查（每5秒检查一次）
-  - 提前1分钟触发语音播报
-  - 播报格式："XXX卫星即将通过XXX信关站"
-- 提供语音播报开关和音量控制
+##### 2.1.4 语音播报系统 - ✅ 已完成
+**实现日期：** 2025-12-24
+
+**已实现的模块：**
+
+1. **语音播报服务** (`src/services/speechService.ts`)
+   - Web Speech API 封装
+   - 支持中文语音自动选择
+   - 提供播报、暂停、恢复、停止功能
+   - 默认配置：音量0.8、语速1.0、音调1.0、语言zh-CN、提前通知1分钟
+
+2. **语音通知服务** (`src/services/speechNotificationService.ts`)
+   - 每5秒检查一次即将到来的弧段
+   - 避免重复播报（使用Map记录已播报的弧段）
+   - 自动清理过期通知记录
+   - 播报格式：`${satName}卫星即将通过${siteName}信关站`
+
+3. **语音播报Hook** (`src/hooks/useSpeechSynthesis.ts`)
+   - 封装语音播报功能
+   - 管理配置状态
+   - 提供测试语音功能
+   - 支持本地存储配置
+
+4. **设置面板集成** (`src/components/SettingsPanel.tsx`)
+   - 语音播报开关控制
+   - 音量调节（0-100%）
+   - 提前通知时间选择（1/5/10分钟）
+   - 测试语音按钮
+
+5. **类型定义** (`src/types/speech.types.ts`)
+   ```typescript
+   interface SpeechConfig {
+     enabled: boolean;           // 是否启用语音播报
+     volume: number;             // 音量（0-1）
+     rate: number;               // 语速（0.1-10）
+     pitch: number;              // 音调（0-2）
+     language: string;           // 语言
+     advanceNoticeMinutes: number; // 提前播报时间（分钟）
+   }
+   ```
+
+**设计决策：**
+- 入境提醒基于系统时间（与弧段状态保持一致）
+- 使用定时器检查（每5秒检查一次）
+- 使用 useRef 避免依赖项频繁变化导致定时器重置
+- 配置同步：确保 speechService.config 与 useSpeechSynthesis.config 保持一致
 
 #### 2.2 地理要素增强
 **优先级：高**
@@ -862,6 +899,6 @@ export default defineConfig({
 
 ---
 
-**文档版本：** 2.1
+**文档版本：** 2.2
 **最后更新：** 2025-12-24
 **下次评审：** 2025-12-29

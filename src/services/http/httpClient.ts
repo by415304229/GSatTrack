@@ -85,8 +85,6 @@ class HttpClient {
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {
-      console.log(`[HttpClient] ${method} ${url}`, body ? { body } : '');
-
       const response = await fetch(url, {
         method,
         headers: requestHeaders,
@@ -100,12 +98,10 @@ class HttpClient {
       if (!response.ok) {
         // 处理401未授权错误
         if (response.status === 401 && !skipAuth && !config.skipRetry) {
-          console.log('[HttpClient] 收到401响应，尝试重新认证...');
           return this.handle401Error(endpoint, config);
         }
 
         const errorData = await response.json().catch(() => ({ message: response.statusText }));
-        console.error(`[HttpClient] 请求失败:`, response.status, errorData);
         throw new Error(errorData.message || `HTTP ${response.status}`);
       }
 
@@ -113,16 +109,9 @@ class HttpClient {
 
       // 如果需要返回响应头（用于获取 Token）
       if (returnHeaders) {
-        console.log(`[HttpClient] 响应成功（含响应头）:`, data);
-        // 获取 accesstoken 响应头（小写）
-        const accessToken = response.headers.get('accesstoken');
-        if (accessToken) {
-          console.log('[HttpClient] 从响应头获取到 Token:', accessToken.substring(0, 20) + '...');
-        }
         return { data, headers: response.headers } as T;
       }
 
-      console.log(`[HttpClient] 响应成功:`, data);
       return data;
     } catch (error: any) {
       clearTimeout(timeoutId);
@@ -149,7 +138,6 @@ class HttpClient {
   private async handle401Error<T>(endpoint: string, config: RequestConfig): Promise<T> {
     // 如果已经在刷新token，将请求加入队列
     if (this.isRefreshing) {
-      console.log('[HttpClient] Token刷新中，请求加入队列...');
       return new Promise((resolve, reject) => {
         this.pendingRequests.push({ resolve, reject, endpoint, config });
       });
@@ -157,7 +145,6 @@ class HttpClient {
 
     // 开始刷新token
     this.isRefreshing = true;
-    console.log('[HttpClient] 开始重新认证...');
 
     try {
       // 动态导入authService避免循环依赖
@@ -168,8 +155,6 @@ class HttpClient {
       if (!loginSuccess) {
         throw new Error('重新认证失败');
       }
-
-      console.log('[HttpClient] 重新认证成功，重试原请求...');
 
       // 认证成功，重试原请求和所有排队的请求
       const originalRequest = this.request<T>(endpoint, config);

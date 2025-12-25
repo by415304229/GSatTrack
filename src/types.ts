@@ -1,5 +1,6 @@
 export interface TLEData {
   name: string;
+  displayName?: string;
   line1: string;
   line2: string;
   satId: string;

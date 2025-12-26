@@ -112,11 +112,53 @@ VITE_CACHE_DURATION_ARC=300000
 VITE_CACHE_DURATION_SATELLITE=3600000
 ```
 
-##### 2.1.2 弧段可视化实现
-- 在3D/2D视图中实现卫星与地面站连线显示
-- 使用InstancedMesh优化大量连线渲染性能
-- 实现连线状态动画（激活/未激活）
-- 支持连线样式自定义（颜色、粗细、透明度）
+##### 2.1.2 弧段可视化实现 - ✅ 已完成
+**实现日期：** 2025-12-26
+
+**已实现的模块：**
+
+1. **3D弧段连线组件** (`src/components/arc/ArcConnections3D.tsx`)
+   - 在3D场景中绘制卫星与地面站的连线
+   - 支持批量渲染多条连线
+   - 根据弧段状态动态显示
+
+2. **3D线条组件** (`src/components/arc/ArcLine3D.tsx`)
+   - 使用圆柱体（CylinderGeometry）创建可见的3D连线
+   - 实现固定长度线段移动的动画效果
+   - 支持激活/未激活状态（透明度变化）
+   - 支持自定义颜色和粗细
+
+3. **可视化配置组件** (`src/components/arc/ArcVisualization.tsx`)
+   - 设置面板中的弧段连线配置界面
+   - 显示/隐藏连线开关
+   - 仅显示活跃弧段选项
+   - 连线宽度调节（1-5px）
+   - 动画效果开关
+
+4. **工具函数**
+   - `src/utils/arcVisualization.ts` - 弧段可视化计算
+   - `src/utils/arcAnimationUtils.ts` - 弧段动画计算
+   - `src/utils/arcShaderUtils.ts` - 着色器工具
+   - `src/utils/arcTimeUtils.ts` - 弧段时间工具
+
+5. **类型定义** (`src/types/arc.types.ts`)
+   ```typescript
+   export interface ArcVisualizationConfig {
+     enabled: boolean;           // 是否显示连线
+     showActiveOnly: boolean;    // 仅显示活跃弧段
+     activeColor: string;        // 活跃弧段颜色（RGBA）
+     upcomingColor: string;      // 即将到来弧段颜色（RGBA）
+     preApproachColor: string;   // 入境前颜色（RGBA）
+     postExitColor: string;      // 出境后颜色（RGBA）
+     lineWidth: number;          // 连线宽度
+     animate: boolean;           // 是否动画效果
+     pulseSpeed: number;         // 脉冲速度
+     dashEnabled: boolean;       // 是否启用虚线
+     dashSize: number;           // 虚线段长度
+     gapSize: number;            // 间隙长度
+     flowSpeed: number;          // 流动速度
+   }
+   ```
 
 ##### 2.1.3 弧段预报界面 - ✅ 已完成
 **实现日期：** 2025-12-24

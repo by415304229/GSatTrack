@@ -2,6 +2,7 @@ import { RefreshCw } from 'lucide-react';
 import React from 'react';
 import { PlaneMonitor } from './PlaneMonitor';
 import type { ArcSegment, ArcVisualizationConfig } from '../types/arc.types';
+import type { GeographicBoundary, SAABoundary } from '../types/geographic.types';
 
 interface MainContentProps {
   loading: boolean;
@@ -31,6 +32,11 @@ interface MainContentProps {
   // 弧段数据
   arcs?: ArcSegment[];
   arcVisualizationConfig?: ArcVisualizationConfig;
+  // 地理图层数据
+  chinaBorder?: GeographicBoundary | null;
+  saaBoundary?: SAABoundary | null;
+  showChinaBorder?: boolean;
+  showSAA?: boolean;
 }
 
 const MainContent: React.FC<MainContentProps> = ({
@@ -43,7 +49,11 @@ const MainContent: React.FC<MainContentProps> = ({
   selectedSatellites,
   timeRate,
   arcs,
-  arcVisualizationConfig
+  arcVisualizationConfig,
+  chinaBorder,
+  saaBoundary,
+  showChinaBorder,
+  showSAA
 }) => {
   if (loading) {
     return (
@@ -81,6 +91,10 @@ const MainContent: React.FC<MainContentProps> = ({
             timeRate={timeRate}
             arcs={arcs}
             arcVisualizationConfig={arcVisualizationConfig}
+            chinaBorder={chinaBorder}
+            saaBoundary={saaBoundary}
+            showChinaBorder={showChinaBorder}
+            showSAA={showSAA}
           />
         </div>
       </div>

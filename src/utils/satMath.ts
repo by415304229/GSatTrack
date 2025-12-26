@@ -3,6 +3,19 @@ import { type TLEData } from '../types';
 
 const EARTH_RADIUS_KM = 6371;
 
+// 太阳位置计算结果接口
+export interface SunPosition {
+  // 场景坐标系中的归一化方向向量（用于3D渲染）
+  scene: { x: number; y: number; z: number };
+  // ECEF坐标系中的单位向量
+  ecef: { x: number; y: number; z: number };
+  // 太阳直射点（太阳子午线与地球表面的交点）
+  subsolarPoint: {
+    lat: number; // 太阳赤纬（度）
+    lon: number; // 太阳子午线经度（度，-180到180）
+  };
+}
+
 // Coordinate Mapping Helper
 // Maps standard ECEF (X=Greenwich, Z=North) to Three.js Scene (Z=Front/Greenwich, Y=Up/North)
 const mapEcefToScene = (ecf: { x: number, y: number, z: number }, scale: number) => {
@@ -40,8 +53,8 @@ export const latLonToScene = (lat: number, lon: number, radius: number = 1) => {
 };
 
 // Calculates sun position based on time
-// Returns normalized direction vector in scene coordinates
-export const calculateSunPosition = (time: Date): { x: number, y: number, z: number } => {
+// Returns normalized direction vector in scene coordinates, ECEF coordinates, and subsolar point
+export const calculateSunPosition = (time: Date): SunPosition => {
   // 计算一年中的天数
   const start = new Date(time.getFullYear(), 0, 0);
   const diff = time.getTime() - start.getTime();
@@ -53,9 +66,9 @@ export const calculateSunPosition = (time: Date): { x: number, y: number, z: num
   const delta = 23.45 * Math.sin(dayAngle); // 太阳赤纬，单位：度
   const deltaRad = delta * Math.PI / 180;
 
-  // 计算时角
+  // 计算时角（修正符号：上午太阳在东边，下午太阳在西边）
   const hours = time.getUTCHours() + time.getUTCMinutes() / 60 + time.getUTCSeconds() / 3600;
-  const hourAngle = 15 * (hours - 12); // 每小时15度，12时为0度
+  const hourAngle = 15 * (12 - hours); // 每小时15度，12时为0度
   const hourAngleRad = hourAngle * Math.PI / 180;
 
   // 计算太阳在ECEF坐标系中的位置
@@ -69,27 +82,50 @@ export const calculateSunPosition = (time: Date): { x: number, y: number, z: num
   const normalizedY = sunEcefY / magnitude;
   const normalizedZ = sunEcefZ / magnitude;
 
+  // 从ECEF坐标计算太阳直射点（地理坐标）
+  // subsolarLat = asin(sunEcefZ)  -- 这是太阳赤纬
+  // subsolarLon = atan2(sunEcefY, sunEcefX) -- 这是太阳子午线经度
+  const subsolarLat = Math.asin(normalizedZ) * 180 / Math.PI;
+  let subsolarLon = Math.atan2(normalizedY, normalizedX) * 180 / Math.PI;
+
+  // 规范化经度到 [-180, 180] 范围
+  if (subsolarLon > 180) {
+    subsolarLon -= 360;
+  } else if (subsolarLon < -180) {
+    subsolarLon += 360;
+  }
+
   // Apply our scene mapping (ECEF X->Z, Y->X, Z->Y)
   // Scene X = ECEF Y
   // Scene Y = ECEF Z
   // Scene Z = ECEF X
   return {
-    x: normalizedY,
-    y: normalizedZ,
-    z: normalizedX
+    scene: {
+      x: normalizedY,
+      y: normalizedZ,
+      z: normalizedX
+    },
+    ecef: {
+      x: normalizedX,
+      y: normalizedY,
+      z: normalizedZ
+    },
+    subsolarPoint: {
+      lat: subsolarLat,
+      lon: subsolarLon
+    }
   };
 };
 
 // Calculates the terminator line coordinates for a given time and map dimensions
 export const calculateTerminatorCoordinates = (time: Date, width: number, height: number) => {
-  // Get sun position
-  const sunPos = calculateSunPosition(time);
+  // Get sun position - 现在返回完整的太阳位置信息
+  const sunResult = calculateSunPosition(time);
 
-  // Calculate the subsolar point (point on Earth directly under the sun)
-  const delta = Math.asin(sunPos.y) * 180 / Math.PI; // 太阳赤纬δ
+  // 直接使用 calculateSunPosition 计算的太阳直射点
+  // 确保与3D视图使用完全相同的太阳位置计算
+  const { lat: delta, lon: subsolarLon } = sunResult.subsolarPoint;
   const deltaRad = delta * Math.PI / 180;
-  const hours = time.getUTCHours() + time.getUTCMinutes() / 60 + time.getUTCSeconds() / 3600;
-  const subsolarLon = (hours / 24) * 360 - 180;
 
   // Generate points for the terminator line
   const points: { x: number, y: number }[] = [];
@@ -130,8 +166,9 @@ export const calculateTerminatorCoordinates = (time: Date, width: number, height
     points,
     sunDeclination: delta, // 太阳赤纬
     polarCircleLat, // 极圈纬度
-    isNorthPolarDay, // 北极是否极昼
-    isSouthPolarDay // 南极是否极昼
+    subsolarLon, // 太阳子午线经度（用于判断昼夜区域）
+    isNorthPolarDay, // 北极是否极昼（保留用于其他用途）
+    isSouthPolarDay // 南极是否极昼（保留用于其他用途）
   };
 };
 

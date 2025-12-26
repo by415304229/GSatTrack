@@ -11,6 +11,8 @@ import {
     AnimationDirection,
     type ArcAnimationConfig
 } from '../utils/arcAnimationUtils';
+import { ChinaBorder2D, SAABoundary2D } from './geographic';
+import type { GeographicBoundary, SAABoundary } from '../types/geographic.types';
 
 interface map2dprops {
     satellites: SatellitePos[];
@@ -19,6 +21,11 @@ interface map2dprops {
     simulatedTime: Date;
     arcs?: ArcSegment[];
     arcVisualizationConfig?: ArcVisualizationConfig;
+    // 地理图层相关props
+    chinaBorder?: GeographicBoundary | null;
+    saaBoundary?: SAABoundary | null;
+    showChinaBorder?: boolean;
+    showSAA?: boolean;
 }
 
 interface hoverdata {
@@ -76,7 +83,12 @@ const Map2D: React.FC<map2dprops> = ({
     onSatClick,
     simulatedTime,
     arcs = [],
-    arcVisualizationConfig
+    arcVisualizationConfig,
+    // 地理图层相关
+    chinaBorder = null,
+    saaBoundary = null,
+    showChinaBorder = true,
+    showSAA = true
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -93,23 +105,6 @@ const Map2D: React.FC<map2dprops> = ({
         segmentLength: 0.2,
         cycleDuration: 2.0,
         extensionFactor: 1.3  // 扩展系数，让线段能完全移出目标位置
-    }), []);
-
-    // 默认弧段可视化配置
-    const defaultArcConfig: ArcVisualizationConfig = useMemo(() => ({
-        enabled: true,
-        showActiveOnly: false,
-        activeColor: '#3b82f6',  // 蓝色（入境中）
-        upcomingColor: 'rgba(6, 182, 212, 0.5)',
-        preApproachColor: 'rgba(128, 128, 128, 0.5)',
-        postExitColor: 'rgba(128, 128, 128, 0.5)',
-        lineWidth: 3.0,  // 增加宽度以提高可见度
-        animate: true,
-        pulseSpeed: 1,
-        dashEnabled: true,
-        dashSize: 0.5,
-        gapSize: 0.5,
-        flowSpeed: 2.0
     }), []);
 
     // Load Earth Map Images
@@ -184,122 +179,136 @@ const Map2D: React.FC<map2dprops> = ({
 
             // Calculate and draw terminator line (day/night boundary)
             const terminatorResult = calculateTerminatorCoordinates(simulatedTime, w, h);
-            const { points: terminatorPoints, isNorthPolarDay, isSouthPolarDay } = terminatorResult;
+            const { points: terminatorPoints, subsolarLon } = terminatorResult;
 
             if (terminatorPoints.length > 0) {
-                // 1. 绘制夜间区域的灯光贴图
-                if (lightsImageRef.current) {
-                    // 创建裁剪路径，只显示夜间区域的灯光
-                    ctx.save();
+                // 计算太阳直射点和反太阳点索引
+                const sunIndex = Math.round(subsolarLon) + 180;
+                const clampedSunIndex = Math.max(0, Math.min(360, sunIndex));
+                const antiSunIndex = (clampedSunIndex + 180) % 361;
 
-                    // 绘制完整的夜间区域路径
+                // 辅助函数：计算点到反太阳点的距离平方
+                const distToAntiSun = (i: number) => {
+                    const dx = terminatorPoints[i].x - terminatorPoints[antiSunIndex].x;
+                    const dy = terminatorPoints[i].y - terminatorPoints[antiSunIndex].y;
+                    return dx * dx + dy * dy;
+                };
+
+                // 追踪晨昏线上属于黑夜一侧的弧段
+                // 从反太阳点两侧开始，选择离反太阳点更远的相邻点
+                const nightArcIndices: number[] = [antiSunIndex];
+
+                // 向左追踪
+                let currentIdx = antiSunIndex;
+                for (let i = 0; i < 180; i++) {
+                    const nextIdx = (currentIdx - 1 + 361) % 361;
+                    const prevIdx = (currentIdx + 1) % 361;
+
+                    // 选择离反太阳点更远的点
+                    if (distToAntiSun(nextIdx) > distToAntiSun(prevIdx)) {
+                        nightArcIndices.unshift(nextIdx);
+                        currentIdx = nextIdx;
+                    } else {
+                        break;
+                    }
+                }
+
+                // 向右追踪
+                currentIdx = antiSunIndex;
+                for (let i = 0; i < 180; i++) {
+                    const nextIdx = (currentIdx + 1) % 361;
+                    const prevIdx = (currentIdx - 1 + 361) % 361;
+
+                    if (distToAntiSun(nextIdx) > distToAntiSun(prevIdx)) {
+                        nightArcIndices.push(nextIdx);
+                        currentIdx = nextIdx;
+                    } else {
+                        break;
+                    }
+                }
+
+                // 绘制黑夜区域的辅助函数
+                const drawNightRegion = (withLights: boolean = false) => {
                     ctx.beginPath();
 
-                    // 处理北极极夜情况
-                    if (!isNorthPolarDay) {
-                        // 从地图左上角(0,0)开始
-                        ctx.moveTo(0, 0);
-                        // 沿顶端直线到右上角(w,0)
+                    // 沿晨昏线黑夜弧段绘制
+                    const firstIdx = nightArcIndices[0];
+                    ctx.moveTo(terminatorPoints[firstIdx].x, terminatorPoints[firstIdx].y);
+
+                    for (let i = 1; i < nightArcIndices.length; i++) {
+                        const idx = nightArcIndices[i];
+                        ctx.lineTo(terminatorPoints[idx].x, terminatorPoints[idx].y);
+                    }
+
+                    // 沿地图边缘闭合路径
+                    const lastIdx = nightArcIndices[nightArcIndices.length - 1];
+                    const lastPoint = terminatorPoints[lastIdx];
+                    const firstPoint = terminatorPoints[firstIdx];
+
+                    // 根据弧段位置选择边缘路径
+                    if (firstPoint.x < lastPoint.x) {
+                        // 弧段偏左，沿地图边缘绕行
+                        ctx.lineTo(0, h);
+                        ctx.lineTo(0, 0);
                         ctx.lineTo(w, 0);
-                        // 移动到晨昏线的最东端
-                        ctx.lineTo(terminatorPoints[terminatorPoints.length - 1].x, terminatorPoints[terminatorPoints.length - 1].y);
-                        // 严格按照terminatorPoints的逆序绘制
-                        for (let i = terminatorPoints.length - 2; i >= 0; i--) {
-                            ctx.lineTo(terminatorPoints[i].x, terminatorPoints[i].y);
-                        }
-                        // 闭合路径回到左上角
-                        ctx.closePath();
-                    }
-
-                    // 处理南极极夜情况
-                    if (!isSouthPolarDay) {
-                        ctx.beginPath();
-                        // 从地图左下角(0,h)开始
-                        ctx.moveTo(0, h);
-                        // 沿底端直线到右下角(w,h)
                         ctx.lineTo(w, h);
-                        // 移动到晨昏线的最西端
-                        ctx.lineTo(terminatorPoints[0].x, terminatorPoints[0].y);
-                        // 严格按照terminatorPoints的顺序绘制
-                        for (let i = 1; i < terminatorPoints.length; i++) {
-                            ctx.lineTo(terminatorPoints[i].x, terminatorPoints[i].y);
-                        }
-                        // 闭合路径回到左下角
-                        ctx.closePath();
+                    } else {
+                        // 弧段偏右
+                        ctx.lineTo(w, h);
+                        ctx.lineTo(0, h);
+                        ctx.lineTo(0, 0);
+                        ctx.lineTo(w, 0);
                     }
 
-                    // 设置裁剪区域
-                    ctx.clip();
-
-                    // 绘制灯光贴图，使用较低的透明度
-                    ctx.globalAlpha = 0.6;
-                    ctx.drawImage(lightsImageRef.current, 0, 0, w, h);
-                    ctx.restore();
-                }
-
-                // 2. 绘制夜间覆盖层，使用渐变效果增强真实感
-                ctx.globalAlpha = 0.8;
-
-                // 处理北极极夜情况
-                if (!isNorthPolarDay) {
-                    ctx.beginPath();
-                    ctx.moveTo(0, 0);
-                    ctx.lineTo(w, 0);
-                    ctx.lineTo(terminatorPoints[terminatorPoints.length - 1].x, terminatorPoints[terminatorPoints.length - 1].y);
-                    for (let i = terminatorPoints.length - 2; i >= 0; i--) {
-                        ctx.lineTo(terminatorPoints[i].x, terminatorPoints[i].y);
-                    }
                     ctx.closePath();
 
-                    // 添加从晨昏线到黑夜中心的渐变效果
-                    const northGradient = ctx.createLinearGradient(w / 2, 0, w / 2, h / 2);
-                    northGradient.addColorStop(0, 'rgba(0, 0, 0, 0.3)'); // 靠近顶端的较浅黑色
-                    northGradient.addColorStop(1, 'rgba(0, 0, 0, 0.6)'); // 靠近中心的较深黑色
-                    ctx.fillStyle = northGradient;
-                    ctx.fill();
-                }
+                    if (withLights && lightsImageRef.current) {
+                        ctx.save();
+                        ctx.clip();
+                        ctx.globalAlpha = 0.6;
+                        ctx.drawImage(lightsImageRef.current, 0, 0, w, h);
+                        ctx.restore();
+                    } else {
+                        ctx.globalAlpha = 0.7;
+                        const centerX = terminatorPoints[antiSunIndex].x;
+                        const centerY = terminatorPoints[antiSunIndex].y;
+                        const maxRadius = Math.max(w, h) * 0.6;
 
-                // 处理南极极夜情况
-                if (!isSouthPolarDay) {
-                    ctx.beginPath();
-                    ctx.moveTo(0, h);
-                    ctx.lineTo(w, h);
-                    ctx.lineTo(terminatorPoints[0].x, terminatorPoints[0].y);
-                    for (let i = 1; i < terminatorPoints.length; i++) {
-                        ctx.lineTo(terminatorPoints[i].x, terminatorPoints[i].y);
+                        const gradient = ctx.createRadialGradient(
+                            centerX, centerY, 0,
+                            centerX, centerY, maxRadius
+                        );
+                        gradient.addColorStop(0, 'rgba(0, 0, 0, 0.3)');
+                        gradient.addColorStop(1, 'rgba(0, 0, 0, 0.7)');
+
+                        ctx.fillStyle = gradient;
+                        ctx.fill();
+                        ctx.globalAlpha = 1.0;
                     }
-                    ctx.closePath();
+                };
 
-                    // 添加从晨昏线到黑夜中心的渐变效果
-                    const southGradient = ctx.createLinearGradient(w / 2, h, w / 2, h / 2);
-                    southGradient.addColorStop(0, 'rgba(0, 0, 0, 0.3)'); // 靠近底端的较浅黑色
-                    southGradient.addColorStop(1, 'rgba(0, 0, 0, 0.6)'); // 靠近中心的较深黑色
-                    ctx.fillStyle = southGradient;
-                    ctx.fill();
+                // 1. 绘制夜间灯光（使用clip）
+                if (lightsImageRef.current) {
+                    drawNightRegion(true);
                 }
 
-                ctx.globalAlpha = 1.0;
+                // 2. 绘制夜间覆盖层（带渐变）
+                drawNightRegion(false);
 
                 // 3. 绘制晨昏线
                 ctx.save();
-
-                // Add glow effect
                 ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
                 ctx.shadowBlur = 10;
-
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
 
-                // 严格按照terminatorPoints的顺序绘制完整的晨昏线
                 ctx.moveTo(terminatorPoints[0].x, terminatorPoints[0].y);
                 for (let i = 1; i < terminatorPoints.length; i++) {
                     ctx.lineTo(terminatorPoints[i].x, terminatorPoints[i].y);
                 }
 
                 ctx.stroke();
-
-                // Reset shadow
                 ctx.restore();
             }
 
@@ -310,6 +319,20 @@ const Map2D: React.FC<map2dprops> = ({
             for (let x = 0; x <= w; x += w / 12) { ctx.moveTo(x, 0); ctx.lineTo(x, h); }
             for (let y = 0; y <= h; y += h / 6) { ctx.moveTo(0, y); ctx.lineTo(w, y); }
             ctx.stroke();
+
+            // 地理图层：中国国境线
+            if (chinaBorder && showChinaBorder) {
+                const chinaBorderRenderer = new ChinaBorder2D(chinaBorder);
+                chinaBorderRenderer.update(w, h);
+                chinaBorderRenderer.draw(ctx);
+            }
+
+            // 地理图层：SAA区域
+            if (saaBoundary && showSAA) {
+                const saaBoundaryRenderer = new SAABoundary2D(saaBoundary);
+                saaBoundaryRenderer.update(w, h);
+                saaBoundaryRenderer.draw(ctx);
+            }
 
             // Arc Connections (弧段连线)
             if (arcs && arcVisualizationConfig?.enabled) {
@@ -457,7 +480,7 @@ const Map2D: React.FC<map2dprops> = ({
 
         render();
         return () => cancelAnimationFrame(animationFrameId);
-    }, [satellites, groundStations, hoverData, simulatedTime, arcs, arcVisualizationConfig, defaultArcConfig]);
+    }, [satellites, groundStations, hoverData, simulatedTime, arcs, arcVisualizationConfig, defaultAnimationConfig, chinaBorder, saaBoundary, showChinaBorder, showSAA]);
 
     // Interaction
     const findObjectAtPos = (clientX: number, clientY: number): hoverdata | null => {

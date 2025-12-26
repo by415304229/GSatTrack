@@ -9,6 +9,8 @@ import { calculateSunPosition, latLonToScene } from '../utils/satMath';
 import { ArcConnections3D } from './arc/ArcConnections3D';
 import { calculateArcConnections3D } from '../utils/arcVisualization';
 import type { ArcSegment, ArcVisualizationConfig } from '../types/arc.types';
+import { ChinaBorder3D, SAABoundary3D } from './geographic';
+import type { GeographicBoundary, SAABoundary } from '../types/geographic.types';
 
 // Earth Radius in scene units
 const R = 1;
@@ -22,6 +24,11 @@ interface earthprops {
   trackedSatellite?: SatellitePos | null;
   arcs?: ArcSegment[];
   arcVisualizationConfig?: ArcVisualizationConfig;
+  // 地理图层相关props
+  chinaBorder?: GeographicBoundary | null;
+  saaBoundary?: SAABoundary | null;
+  showChinaBorder?: boolean;
+  showSAA?: boolean;
 }
 
 const Atmosphere = () => {
@@ -315,13 +322,19 @@ const Earth3D: React.FC<earthprops> = ({
   isTracking = false,
   trackedSatellite = null,
   arcs = [],
-  arcVisualizationConfig
+  arcVisualizationConfig,
+  // 地理图层相关
+  chinaBorder = null,
+  saaBoundary = null,
+  showChinaBorder = true,
+  showSAA = true
 }) => {
   const [hoverData, setHoverData] = useState<hoverdata | null>(null);
 
   // Calculate sun position based on simulated time
   const sunPosition = useMemo(() => {
-    return calculateSunPosition(simulatedTime);
+    const result = calculateSunPosition(simulatedTime);
+    return result.scene;  // 提取场景坐标用于3D渲染
   }, [simulatedTime]);
 
   // 默认弧段可视化配置
@@ -440,7 +453,7 @@ const Earth3D: React.FC<earthprops> = ({
         <color attach="background" args={['#000']} />
         <ambientLight intensity={0.2} />
         <directionalLight
-          position={[-sunPosition.x * 5, -sunPosition.y * 5, -sunPosition.z * 5]}
+          position={[sunPosition.x * 5, sunPosition.y * 5, sunPosition.z * 5]}
           intensity={2.5}
           castShadow
         />
@@ -450,6 +463,15 @@ const Earth3D: React.FC<earthprops> = ({
           <Suspense fallback={null}>
             <Earthmesh sunPosition={sunPosition} />
           </Suspense>
+
+          {/* 地理图层 */}
+          {chinaBorder && showChinaBorder && (
+            <ChinaBorder3D boundary={chinaBorder} visible={showChinaBorder} />
+          )}
+
+          {saaBoundary && showSAA && (
+            <SAABoundary3D saaBoundary={saaBoundary} visible={showSAA} />
+          )}
 
           <SatelliteInstances
             satellites={satellites}

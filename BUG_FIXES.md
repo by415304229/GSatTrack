@@ -178,3 +178,78 @@ export const getErrorSeverity = (errorType: TLEImportErrorType): ErrorSeverity =
 5. **构建和编译**: 确保项目能够成功构建，修复了所有编译错误。
 
 这些修复显著提高了代码的健壮性、可维护性和用户体验，减少了潜在的运行时错误和异常情况。
+
+---
+
+## 弧段预报功能重构 (2024-12)
+
+### 功能概述
+
+将弧段预报功能重构为两个独立显示区域，提升用户体验和信息可读性。
+
+### 实现内容
+
+#### 1. 中央上方横幅 - 正在入境卫星
+
+**文件**: `src/components/arc/ArcForecastBanner.tsx`
+
+- 只显示 ACTIVE 状态的弧段（正在入境中）
+- 倒计时改为显示剩余时间（从结束时间计算）
+- 使用绿色主题（emerald-400）+ 闪烁图标
+- 支持单个弧段关闭
+
+#### 2. 左上角面板 - 即将入境卫星
+
+**文件**: `src/components/arc/ArcUpcomingPanel.tsx`（新建）
+
+- 显示所有即将入境的弧段（UPCOMING + PRE_APPROACH 状态）
+- 倒计时显示距离开始时间
+- 使用琥珀色主题（amber-400）+ 静态图标
+- 最多显示4条预报
+- **支持折叠/展开功能**：默认折叠，点击图标展开，不使用时贴在左侧边缘
+
+#### 3. 数据处理优化
+
+**文件**: `src/hooks/useArcMonitor.ts`
+
+- `upcomingArcs` 包含所有未开始的弧段（不限时间）
+- `activeArcs` 只包含活跃弧段
+- 保持向后兼容性，`displayArcs` 用于可视化连线
+
+#### 4. 工具函数扩展
+
+**文件**: `src/utils/arcTimeUtils.ts`
+
+- 新增 `formatCountdownShort` - 格式化距离开始时间的倒计时
+- 新增 `formatRemainingTimeShort` - 格式化剩余时间倒计时
+
+### 视觉效果对比
+
+| 特性 | 正在入境 (中央横幅) | 即将入境 (左上角) |
+|------|---------------------|-------------------|
+| 颜色 | 绿色 (emerald-400) | 琥珀色 (amber-400) |
+| 图标动画 | 闪烁 (animate-pulse) | 静态 |
+| 倒计时 | 剩余时间 (结束时间) | 入境时间 (开始时间) |
+| 最大数量 | 不限制 | 4条 |
+| 交互 | 单个关闭按钮 | 折叠/展开功能 |
+
+### 修改文件清单
+
+| 文件 | 类型 | 说明 |
+|------|------|------|
+| `src/components/arc/ArcUpcomingPanel.tsx` | 新建 | 左上角即将入境面板 |
+| `src/components/arc/ArcForecastBanner.tsx` | 修改 | 改为只显示 activeArcs |
+| `src/hooks/useArcMonitor.ts` | 修改 | upcomingArcs 包含所有未开始弧段 |
+| `src/utils/arcTimeUtils.ts` | 修改 | 新增时间格式化函数 |
+| `src/pages/HomePage.tsx` | 修改 | 集成新组件 |
+
+### 测试验证
+
+- [x] 中央横幅只显示 ACTIVE 状态的弧段
+- [x] 中央横幅倒计时显示剩余时间
+- [x] 左上角面板显示所有即将入境的弧段
+- [x] 左上角面板倒计时显示距离开始时间
+- [x] 折叠/展开功能正常
+- [x] 面板位置不遮盖 Header
+- [x] 2D、3D、分屏视图下两个面板都正常显示
+- [x] 构建成功通过

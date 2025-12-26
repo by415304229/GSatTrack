@@ -6,6 +6,7 @@ import Earth3D from './Earth3D';
 import Map2D from './Map2D';
 import SatelliteDetail from './SatelliteDetail';
 import type { ArcSegment, ArcVisualizationConfig } from '../types/arc.types';
+import type { GeographicBoundary, SAABoundary } from '../types/geographic.types';
 
 const ORBIT_COLORS = ['#06b6d4', '#3b82f6'];
 
@@ -21,6 +22,11 @@ interface PlaneMonitorProps {
     // 弧段数据
     arcs?: ArcSegment[];
     arcVisualizationConfig?: ArcVisualizationConfig;
+    // 地理图层数据
+    chinaBorder?: GeographicBoundary | null;
+    saaBoundary?: SAABoundary | null;
+    showChinaBorder?: boolean;
+    showSAA?: boolean;
 }
 
 export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
@@ -33,7 +39,11 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
     selectedSatellites,
     timeRate = 1,
     arcs,
-    arcVisualizationConfig
+    arcVisualizationConfig,
+    chinaBorder,
+    saaBoundary,
+    showChinaBorder,
+    showSAA
 }) => {
     const [satellites, setSatellites] = useState<SatellitePos[]>([]);
     const [selectedSatId, setSelectedSatId] = useState<string | null>(null);
@@ -166,6 +176,10 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
                                 trackedSatellite={trackedSat}
                                 arcs={arcs}
                                 arcVisualizationConfig={arcVisualizationConfig}
+                                chinaBorder={chinaBorder}
+                                saaBoundary={saaBoundary}
+                                showChinaBorder={showChinaBorder}
+                                showSAA={showSAA}
                             />
                         </div>
                     </div>
@@ -185,6 +199,10 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
                                 simulatedTime={simulatedTime}
                                 arcs={arcs}
                                 arcVisualizationConfig={arcVisualizationConfig}
+                                chinaBorder={chinaBorder}
+                                saaBoundary={saaBoundary}
+                                showChinaBorder={showChinaBorder}
+                                showSAA={showSAA}
                             />
                         </div>
                     </div>
@@ -207,6 +225,10 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
                                     trackedSatellite={trackedSat}
                                     arcs={arcs}
                                     arcVisualizationConfig={arcVisualizationConfig}
+                                    chinaBorder={chinaBorder}
+                                    saaBoundary={saaBoundary}
+                                    showChinaBorder={showChinaBorder}
+                                    showSAA={showSAA}
                                 />
                             </div>
                         </div>
@@ -223,6 +245,10 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
                                     simulatedTime={simulatedTime}
                                     arcs={arcs}
                                     arcVisualizationConfig={arcVisualizationConfig}
+                                    chinaBorder={chinaBorder}
+                                    saaBoundary={saaBoundary}
+                                    showChinaBorder={showChinaBorder}
+                                    showSAA={showSAA}
                                 />
                             </div>
                         </div>

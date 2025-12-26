@@ -1,7 +1,8 @@
-import { Settings, X } from 'lucide-react';
+import { Settings, X, Globe } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import type { SpeechConfig } from '../types/speech.types';
 import type { ArcVisualizationConfig } from '../types/arc.types';
+import type { GeographicLayerConfig } from '../types/geographic.types';
 import { ArcVisualization } from './arc/ArcVisualization';
 
 export interface SatelliteProperties {
@@ -28,6 +29,9 @@ export interface SettingsPanelProps {
     onArcVisualizationConfigChange?: (config: Partial<ArcVisualizationConfig>) => void;
     // 测试语音功能
     onTestSpeech?: () => void;
+    // 地理图层配置
+    geographicConfig?: GeographicLayerConfig;
+    onGeographicConfigChange?: (config: Partial<GeographicLayerConfig>) => void;
 }
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({
@@ -43,7 +47,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     onSpeechConfigChange,
     arcVisualizationConfig,
     onArcVisualizationConfigChange,
-    onTestSpeech
+    onTestSpeech,
+    geographicConfig,
+    onGeographicConfigChange
 }) => {
     const [windowInput, setWindowInput] = useState(orbitWindowMinutes.toString());
     const [searchTerm, setSearchTerm] = useState('');
@@ -346,6 +352,45 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                             config={arcVisualizationConfig}
                             onConfigChange={onArcVisualizationConfigChange}
                         />
+                    )}
+
+                    {/* 地理图层配置 */}
+                    {geographicConfig && onGeographicConfigChange && (
+                        <div className="space-y-3">
+                            <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wide text-zh flex items-center gap-2">
+                                <Globe size={14} />
+                                地理图层
+                            </h3>
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs text-slate-300 text-zh">中国国境线</span>
+                                    <input
+                                        type="checkbox"
+                                        checked={geographicConfig.showChinaBorder}
+                                        onChange={(e) => onGeographicConfigChange({ showChinaBorder: e.target.checked })}
+                                        className="rounded text-cyan-600 bg-slate-800 border-slate-600"
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs text-slate-300 text-zh">SAA区域</span>
+                                    <input
+                                        type="checkbox"
+                                        checked={geographicConfig.showSAA}
+                                        onChange={(e) => onGeographicConfigChange({ showSAA: e.target.checked })}
+                                        className="rounded text-cyan-600 bg-slate-800 border-slate-600"
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs text-slate-300 text-zh">SAA进入监控</span>
+                                    <input
+                                        type="checkbox"
+                                        checked={geographicConfig.monitorSAAEntry}
+                                        onChange={(e) => onGeographicConfigChange({ monitorSAAEntry: e.target.checked })}
+                                        className="rounded text-cyan-600 bg-slate-800 border-slate-600"
+                                    />
+                                </div>
+                            </div>
+                        </div>
                     )}
                 </div>
             </div>

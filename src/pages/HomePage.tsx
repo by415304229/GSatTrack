@@ -3,8 +3,10 @@ import useSatelliteManager from '../hooks/useSatelliteManager';
 import { useTimeSimulation } from '../hooks/useTimeSimulation';
 import useArcMonitor from '../hooks/useArcMonitor';
 import { useSpeechSynthesis } from '../hooks/useSpeechSynthesis';
+import { useGeographicLayers } from '../hooks/useGeographicLayers';
 import speechNotificationService from '../services/speechNotificationService';
 import { loadArcVisibilityConfig } from '../utils/storage';
+import { getSatellitePosition } from '../utils/satMath';
 import type { ArcVisualizationConfig } from '../types/arc.types';
 
 import Header from '../components/Header';
@@ -13,6 +15,7 @@ import { SettingsPanel } from '../components/SettingsPanel';
 import TLEImportModal from '../components/TLEImportModal';
 import { ArcForecastBanner } from '../components/arc/ArcForecastBanner';
 import { ArcUpcomingPanel } from '../components/arc/ArcUpcomingPanel';
+import { SAAMonitor } from '../components/geographic';
 
 const HomePage: React.FC = () => {
     // 状态管理
@@ -101,6 +104,26 @@ const HomePage: React.FC = () => {
         initialRate: 1,
         autoStart: true
     });
+
+    // 地理图层（需要在 simTime 定义之后）
+    const geographicLayers = useGeographicLayers(
+        groups.flatMap(group =>
+            (group.tles || [])
+                .filter(tle => selectedSatellites.has(tle.satId))
+                .map(tle => {
+                    const pos = getSatellitePosition({
+                        line1: tle.line1!,
+                        line2: tle.line2!,
+                        satId: tle.satId!,
+                        name: tle.name,
+                        displayName: tle.displayName,
+                        updatedAt: new Date()
+                    }, simTime);
+                    return pos;
+                })
+                .filter(p => p !== null)
+        )
+    );
 
     // 弧段监控（传入模拟时间）
     const arcMonitor = useArcMonitor({
@@ -203,6 +226,10 @@ const HomePage: React.FC = () => {
                 timeRate={timeRate}
                 arcs={arcMonitor.displayArcs}
                 arcVisualizationConfig={arcVisualizationConfig}
+                chinaBorder={geographicLayers.chinaBorder}
+                saaBoundary={geographicLayers.saaBoundary}
+                showChinaBorder={geographicLayers.config.showChinaBorder}
+                showSAA={geographicLayers.config.showSAA}
             />
 
             {/* 弧段预报横幅 */}
@@ -218,6 +245,12 @@ const HomePage: React.FC = () => {
                 upcomingArcs={arcMonitor.upcomingArcs}
                 isLoading={arcMonitor.isLoading}
                 error={arcMonitor.error}
+            />
+
+            {/* SAA区域监控面板 */}
+            <SAAMonitor
+                events={geographicLayers.saaEvents}
+                visible={geographicLayers.config.monitorSAAEntry}
             />
 
             <SettingsPanel
@@ -247,6 +280,8 @@ const HomePage: React.FC = () => {
                 onTestSpeech={speech.testSpeech}
                 arcVisualizationConfig={arcVisualizationConfig}
                 onArcVisualizationConfigChange={handleArcVisualizationConfigChange}
+                geographicConfig={geographicLayers.config}
+                onGeographicConfigChange={geographicLayers.updateConfig}
             />
 
             <TLEImportModal

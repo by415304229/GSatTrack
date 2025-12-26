@@ -5,7 +5,10 @@
 
 import type { ArcSegment } from '../services/types/api.types';
 import type { ArcVisualizationConfig } from '../types/arc.types';
+import { ArcStatus } from '../types/arc.types';
 import satelliteMappingService from '../services/satelliteMappingService';
+import { latLonToScene } from './satMath';
+import { calculateArcDetailedStatus, shouldShowArcConnection, getArcConnectionColor } from './arcTimeUtils';
 
 /**
  * 3D点坐标
@@ -150,14 +153,22 @@ export const calculateArcConnections3D = (
   // 创建地面站位置映射（需要转换为3D坐标）
   const stationPosMap = new Map<string, Point3D>();
   groundStations.forEach(station => {
-    const pos = latLonToVector3(station.lat, station.lon, 1.0);
+    const pos = latLonToScene(station.lat, station.lon, 1.0);
     stationPosMap.set(station.name, pos);
   });
 
   // 遍历弧段，计算连线
   arcs.forEach(arc => {
-    // 如果只显示活跃弧段，过滤掉未活跃的
-    if (config.showActiveOnly && !isArcActive(arc, currentTime)) {
+    // 计算详细状态（包含1分钟缓冲期）
+    const arcWithStatus = calculateArcDetailedStatus(arc, currentTime);
+
+    // 判断是否应该显示连线
+    if (!shouldShowArcConnection(arcWithStatus.status)) {
+      return;
+    }
+
+    // 如果只显示活跃弧段，过滤掉非活跃的
+    if (config.showActiveOnly && arcWithStatus.status !== ArcStatus.ACTIVE) {
       return;
     }
 
@@ -185,12 +196,14 @@ export const calculateArcConnections3D = (
       return;
     }
 
-    const isActive = isArcActive(arc, currentTime);
+    // 根据状态获取颜色
+    const color = getArcConnectionColor(arcWithStatus.status, config);
+
     connections.push({
       satellite: satPos,
       station: stationPos,
-      isActive,
-      color: isActive ? config.activeColor : config.upcomingColor
+      isActive: arcWithStatus.status === ArcStatus.ACTIVE,
+      color
     });
   });
 
@@ -239,7 +252,16 @@ export const calculateArcConnections2D = (
 
   // 遍历弧段，计算连线
   arcs.forEach(arc => {
-    if (config.showActiveOnly && !isArcActive(arc, currentTime)) {
+    // 计算详细状态（包含1分钟缓冲期）
+    const arcWithStatus = calculateArcDetailedStatus(arc, currentTime);
+
+    // 判断是否应该显示连线
+    if (!shouldShowArcConnection(arcWithStatus.status)) {
+      return;
+    }
+
+    // 如果只显示活跃弧段，过滤掉非活跃的
+    if (config.showActiveOnly && arcWithStatus.status !== ArcStatus.ACTIVE) {
       return;
     }
 
@@ -267,32 +289,16 @@ export const calculateArcConnections2D = (
       return;
     }
 
-    const isActive = isArcActive(arc, currentTime);
+    // 根据状态获取颜色
+    const color = getArcConnectionColor(arcWithStatus.status, config);
+
     connections.push({
       satellite: satPos,
       station: stationPos,
-      isActive,
-      color: isActive ? config.activeColor : config.upcomingColor
+      isActive: arcWithStatus.status === ArcStatus.ACTIVE,
+      color
     });
   });
 
   return connections;
 };
-
-/**
- * 将经纬度转换为3D单位向量（球面坐标）
- * @param lat 纬度（度）
- * @param lon 经度（度）
- * @param radius 半径
- * @returns 3D向量
- */
-function latLonToVector3(lat: number, lon: number, radius: number): Point3D {
-  const phi = (90 - lat) * (Math.PI / 180);
-  const theta = (lon + 180) * (Math.PI / 180);
-
-  const x = -radius * Math.sin(phi) * Math.cos(theta);
-  const y = radius * Math.cos(phi);
-  const z = radius * Math.sin(phi) * Math.sin(theta);
-
-  return { x, y, z };
-}

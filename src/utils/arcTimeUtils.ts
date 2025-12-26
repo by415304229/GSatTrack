@@ -3,8 +3,13 @@
  */
 
 import type { ArcSegment } from '../services/types/api.types';
-import type { ArcWithStatus } from '../types/arc.types';
+import type { ArcWithStatus, ArcVisualizationConfig } from '../types/arc.types';
 import { ArcStatus } from '../types/arc.types';
+
+/**
+ * 1分钟的毫秒数
+ */
+export const ONE_MINUTE_MS = 60 * 1000;
 
 /**
  * 计算弧段状态
@@ -111,4 +116,100 @@ export const formatTimeRange = (
   };
 
   return `${formatTime(start)} - ${formatTime(end)}`;
+};
+
+/**
+ * 计算弧段详细状态（包含1分钟缓冲期）
+ * @param arc 弧段数据
+ * @param currentTime 当前时间
+ * @returns 带详细状态的弧段数据
+ */
+export const calculateArcDetailedStatus = (
+  arc: ArcSegment,
+  currentTime: Date
+): ArcWithStatus => {
+  const startTime = new Date(arc.startTime);
+  const endTime = new Date(arc.endTime);
+  const now = currentTime.getTime();
+
+  const startMs = startTime.getTime();
+  const endMs = endTime.getTime();
+
+  let status: ArcStatus;
+  let bufferTimeRemaining: number | undefined;
+
+  // 入境前1分钟内
+  if (now >= startMs - ONE_MINUTE_MS && now < startMs) {
+    status = ArcStatus.PRE_APPROACH;
+    bufferTimeRemaining = startMs - now;
+  }
+  // 入境中
+  else if (now >= startMs && now <= endMs) {
+    status = ArcStatus.ACTIVE;
+  }
+  // 出境后1分钟内
+  else if (now > endMs && now <= endMs + ONE_MINUTE_MS) {
+    status = ArcStatus.POST_EXIT;
+    bufferTimeRemaining = endMs + ONE_MINUTE_MS - now;
+  }
+  // 即将到来（>1分钟前）
+  else if (now < startMs - ONE_MINUTE_MS) {
+    status = ArcStatus.UPCOMING;
+  }
+  // 已过期（>1分钟后）
+  else {
+    status = ArcStatus.EXPIRED;
+  }
+
+  const timeToStart = startMs - now;
+  const timeToEnd = endMs - now;
+
+  // 计算进度
+  const totalDuration = endMs - startMs;
+  const elapsed = now - startMs;
+  const progress = Math.max(0, Math.min(1, elapsed / totalDuration));
+
+  return {
+    ...arc,
+    status,
+    timeToStart,
+    timeToEnd,
+    progress,
+    bufferTimeRemaining
+  };
+};
+
+/**
+ * 判断弧段是否应该显示连线
+ * @param status 弧段状态
+ * @returns 是否显示连线
+ */
+export const shouldShowArcConnection = (status: ArcStatus): boolean => {
+  return [
+    ArcStatus.PRE_APPROACH,
+    ArcStatus.ACTIVE,
+    ArcStatus.POST_EXIT
+  ].includes(status);
+};
+
+/**
+ * 根据状态获取连线颜色
+ * @param status 弧段状态
+ * @param config 可视化配置
+ * @returns 颜色字符串
+ */
+export const getArcConnectionColor = (
+  status: ArcStatus,
+  config: ArcVisualizationConfig
+): string => {
+  switch (status) {
+    case ArcStatus.ACTIVE:
+      return config.activeColor;
+    case ArcStatus.PRE_APPROACH:
+      return config.preApproachColor || 'rgba(128, 128, 128, 0.5)';
+    case ArcStatus.POST_EXIT:
+      return config.postExitColor || 'rgba(128, 128, 128, 0.5)';
+    default:
+      return 'transparent';
+  }
 };

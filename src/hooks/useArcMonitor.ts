@@ -8,12 +8,13 @@ import arcService from '../services/arcService';
 import type { ArcSegment } from '../services/types/api.types';
 import type { ArcWithStatus } from '../types/arc.types';
 import { ArcStatus } from '../types/arc.types';
-import { calculateArcStatus, sortArcsByTime } from '../utils/arcTimeUtils';
+import { calculateArcDetailedStatus, sortArcsByTime, shouldShowArcConnection } from '../utils/arcTimeUtils';
 
 interface UseArcMonitorOptions {
   lookAheadHours?: number;
   maxDisplayCount?: number;
   enabled?: boolean;
+  simulatedTime?: Date;  // 模拟时间，用于计算弧段状态
 }
 
 interface UseArcMonitorResult {
@@ -28,12 +29,12 @@ interface UseArcMonitorResult {
 
 /**
  * 弧段监控 Hook
- * 获取弧段数据并计算实时状态（基于系统时间）
+ * 获取弧段数据并计算实时状态（基于模拟时间）
  */
 export const useArcMonitor = (
   options: UseArcMonitorOptions = {}
 ): UseArcMonitorResult => {
-  const { lookAheadHours = 24, maxDisplayCount = 4, enabled = true } = options;
+  const { lookAheadHours = 24, maxDisplayCount = 4, enabled = true, simulatedTime } = options;
 
   // 原始弧段数据
   const [rawArcs, setRawArcs] = useState<ArcSegment[]>([]);
@@ -93,31 +94,45 @@ export const useArcMonitor = (
     }
   }, [enabled, refresh]);
 
-  // 实时更新弧段状态（基于系统时间）
+  // 实时更新弧段状态（基于模拟时间）
   useEffect(() => {
     const updateArcStatus = () => {
-      const now = new Date();
+      // 使用模拟时间或系统时间
+      const nowDate = simulatedTime || new Date();
+      const now = nowDate.getTime();
 
       // 限制更新频率
-      if (now.getTime() - lastUpdateTime.current < UPDATE_INTERVAL) {
+      if (now - lastUpdateTime.current < UPDATE_INTERVAL) {
         // 继续下一帧
         rafIdRef.current = requestAnimationFrame(updateArcStatus);
         return;
       }
-      lastUpdateTime.current = now.getTime();
+      lastUpdateTime.current = now;
 
       const sortedArcs = sortArcsByTime(rawArcs);
 
       const processed = sortedArcs.reduce((acc, arc) => {
-        const withStatus = calculateArcStatus(arc, now);
+        const withStatus = calculateArcDetailedStatus(arc, nowDate);
 
+        // 活跃弧段（入境中）
         if (withStatus.status === ArcStatus.ACTIVE) {
           acc.active.push(withStatus);
           acc.display.push(withStatus);
-        } else if (withStatus.status === ArcStatus.UPCOMING) {
+        }
+        // 即将到来（>1分钟前）
+        else if (withStatus.status === ArcStatus.UPCOMING) {
           acc.upcoming.push(withStatus);
           // 只显示即将到来的弧段（最多4条）
           if (acc.display.length < maxDisplayCount) {
+            acc.display.push(withStatus);
+          }
+        }
+        // 入境前1分钟内、出境后1分钟内
+        else if (shouldShowArcConnection(withStatus.status)) {
+          // 将缓冲期的弧段添加到显示列表
+          if (withStatus.status === ArcStatus.PRE_APPROACH) {
+            acc.display.push(withStatus);
+          } else if (withStatus.status === ArcStatus.POST_EXIT) {
             acc.display.push(withStatus);
           }
         }
@@ -144,7 +159,7 @@ export const useArcMonitor = (
         cancelAnimationFrame(rafIdRef.current);
       }
     };
-  }, [rawArcs, maxDisplayCount]);
+  }, [rawArcs, maxDisplayCount, simulatedTime]);
 
   return {
     upcomingArcs: processedArcs.upcoming,

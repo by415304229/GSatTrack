@@ -328,11 +328,17 @@ const Earth3D: React.FC<earthprops> = ({
   const defaultArcConfig: ArcVisualizationConfig = {
     enabled: true,
     showActiveOnly: false,
-    activeColor: '#10b981',
+    activeColor: '#3b82f6',  // 蓝色（入境中）
     upcomingColor: 'rgba(6, 182, 212, 0.5)',
-    lineWidth: 1.5,
+    preApproachColor: 'rgba(128, 128, 128, 0.5)',
+    postExitColor: 'rgba(128, 128, 128, 0.5)',
+    lineWidth: 3.0,  // 增加宽度以提高可见度
     animate: true,
-    pulseSpeed: 1
+    pulseSpeed: 1,
+    dashEnabled: true,
+    dashSize: 0.5,
+    gapSize: 0.5,
+    flowSpeed: 2.0
   };
 
   // 计算弧段连线

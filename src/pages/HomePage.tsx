@@ -24,9 +24,6 @@ const HomePage: React.FC = () => {
         onSatellitePropertyChange
     } = useSatelliteManager();
 
-    // 弧段监控
-    const arcMonitor = useArcMonitor({ lookAheadHours: 24, maxDisplayCount: 4, enabled: true });
-
     // 语音播报
     const speech = useSpeechSynthesis();
 
@@ -36,11 +33,17 @@ const HomePage: React.FC = () => {
         return saved || {
             enabled: true,
             showActiveOnly: false,
-            activeColor: '#10b981',
+            activeColor: '#3b82f6',  // 蓝色（入境中）
             upcomingColor: '#06b6d4',
-            lineWidth: 1.5,
+            preApproachColor: 'rgba(128, 128, 128, 0.5)',
+            postExitColor: 'rgba(128, 128, 128, 0.5)',
+            lineWidth: 3.0,  // 增加宽度以提高可见度
             animate: true,
-            pulseSpeed: 1
+            pulseSpeed: 1,
+            dashEnabled: true,
+            dashSize: 0.5,
+            gapSize: 0.5,
+            flowSpeed: 2.0
         };
     });
 
@@ -96,6 +99,14 @@ const HomePage: React.FC = () => {
         initialTime: new Date(),
         initialRate: 1,
         autoStart: true
+    });
+
+    // 弧段监控（传入模拟时间）
+    const arcMonitor = useArcMonitor({
+        lookAheadHours: 24,
+        maxDisplayCount: 4,
+        enabled: true,
+        simulatedTime: simTime
     });
 
     const [viewMode, setViewMode] = useState<'3d' | '2d' | 'split'>('3d');

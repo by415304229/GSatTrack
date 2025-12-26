@@ -3,7 +3,14 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { type GroundStation, type SatellitePos } from '../types';
 import { calculateTerminatorCoordinates } from '../utils/satMath';
 import { calculateArcConnections2D } from '../utils/arcVisualization';
-import type { ArcSegment, ArcVisualizationConfig } from '../types/arc.types';
+import type { ArcVisualizationConfig } from '../types/arc.types';
+import type { ArcSegment } from '../services/types/api.types';
+import {
+    calculateArcAnimationState,
+    calculateSegmentEndpoints,
+    AnimationDirection,
+    type ArcAnimationConfig
+} from '../utils/arcAnimationUtils';
 
 interface map2dprops {
     satellites: SatellitePos[];
@@ -77,15 +84,32 @@ const Map2D: React.FC<map2dprops> = ({
     const lightsImageRef = useRef<HTMLImageElement | null>(null);
     const [hoverData, setHoverData] = useState<hoverdata | null>(null);
 
+    // 弧段动画时间引用
+    const arcAnimationTimeRef = useRef(0);
+
+    // 默认动画配置
+    const defaultAnimationConfig: ArcAnimationConfig = useMemo(() => ({
+        segmentCount: 3,
+        segmentLength: 0.2,
+        cycleDuration: 2.0,
+        extensionFactor: 1.3  // 扩展系数，让线段能完全移出目标位置
+    }), []);
+
     // 默认弧段可视化配置
     const defaultArcConfig: ArcVisualizationConfig = useMemo(() => ({
         enabled: true,
         showActiveOnly: false,
-        activeColor: '#10b981',
+        activeColor: '#3b82f6',  // 蓝色（入境中）
         upcomingColor: 'rgba(6, 182, 212, 0.5)',
-        lineWidth: 1.5,
+        preApproachColor: 'rgba(128, 128, 128, 0.5)',
+        postExitColor: 'rgba(128, 128, 128, 0.5)',
+        lineWidth: 3.0,  // 增加宽度以提高可见度
         animate: true,
-        pulseSpeed: 1
+        pulseSpeed: 1,
+        dashEnabled: true,
+        dashSize: 0.5,
+        gapSize: 0.5,
+        flowSpeed: 2.0
     }), []);
 
     // Load Earth Map Images
@@ -299,26 +323,58 @@ const Map2D: React.FC<map2dprops> = ({
                     arcVisualizationConfig
                 );
 
+                // 更新动画时间（每帧增加0.048秒，约60fps，加快3倍）
+                arcAnimationTimeRef.current += 0.024;
+
+                // 计算动画状态
+                const animationState = calculateArcAnimationState(arcAnimationTimeRef.current, defaultAnimationConfig);
+
                 connections.forEach(conn => {
-                    ctx.beginPath();
-                    ctx.moveTo(conn.satellite.x, conn.satellite.y);
-                    ctx.lineTo(conn.station.x, conn.station.y);
-
-                    // 设置样式
-                    const color = conn.isActive ? conn.color : conn.color.replace(/[\d.]+\)$/, '0.3)');
-                    ctx.strokeStyle = color;
-                    ctx.lineWidth = conn.isActive ? (arcVisualizationConfig.lineWidth || 1.5) : 1;
-
-                    // 添加发光效果
-                    if (conn.isActive) {
-                        ctx.shadowColor = conn.color;
-                        ctx.shadowBlur = 10;
+                    // 仅对活跃弧段绘制脉冲动画
+                    if (!conn.isActive) {
+                        // 非活跃弧段绘制灰色虚线
+                        ctx.beginPath();
+                        ctx.moveTo(conn.satellite.x, conn.satellite.y);
+                        ctx.lineTo(conn.station.x, conn.station.y);
+                        ctx.setLineDash([4, 4]);
+                        ctx.strokeStyle = conn.color.replace(/[\d.]+\)$/, '0.3)');
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                        return;
                     }
 
-                    ctx.stroke();
+                    // 绘制脉冲线段
+                    animationState.segments.forEach(segment => {
+                        const isFromSatellite = animationState.direction === AnimationDirection.SATELLITE_TO_STATION;
+                        const origin = isFromSatellite ? conn.satellite : conn.station;
+                        const target = isFromSatellite ? conn.station : conn.satellite;
 
-                    // 重置shadow
-                    ctx.shadowBlur = 0;
+                        const [startX, startY, endX, endY] = calculateSegmentEndpoints(
+                            origin.x,
+                            origin.y,
+                            target.x,
+                            target.y,
+                            segment.startPosition,
+                            segment.endPosition
+                        );
+
+                        // 绘制线段
+                        ctx.beginPath();
+                        ctx.moveTo(startX, startY);
+                        ctx.lineTo(endX, endY);
+                        ctx.strokeStyle = conn.color;
+                        ctx.lineWidth = arcVisualizationConfig.lineWidth || 2;
+
+                        // 添加发光效果
+                        ctx.shadowColor = conn.color;
+                        ctx.shadowBlur = 10;
+
+                        ctx.stroke();
+
+                        // 重置阴影
+                        ctx.shadowBlur = 0;
+                    });
                 });
             }
 

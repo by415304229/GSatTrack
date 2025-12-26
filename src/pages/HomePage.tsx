@@ -12,6 +12,7 @@ import MainContent from '../components/MainContent';
 import { SettingsPanel } from '../components/SettingsPanel';
 import TLEImportModal from '../components/TLEImportModal';
 import { ArcForecastBanner } from '../components/arc/ArcForecastBanner';
+import { ArcUpcomingPanel } from '../components/arc/ArcUpcomingPanel';
 
 const HomePage: React.FC = () => {
     // 状态管理
@@ -206,9 +207,16 @@ const HomePage: React.FC = () => {
 
             {/* 弧段预报横幅 */}
             <ArcForecastBanner
-                arcs={arcMonitor.displayArcs}
+                activeArcs={arcMonitor.activeArcs}
                 isLoading={arcMonitor.isLoading}
                 isRefreshing={arcMonitor.isRefreshing}
+                error={arcMonitor.error}
+            />
+
+            {/* 左上角即将入境面板 */}
+            <ArcUpcomingPanel
+                upcomingArcs={arcMonitor.upcomingArcs}
+                isLoading={arcMonitor.isLoading}
                 error={arcMonitor.error}
             />
 

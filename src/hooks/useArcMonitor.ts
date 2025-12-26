@@ -119,22 +119,20 @@ export const useArcMonitor = (
           acc.active.push(withStatus);
           acc.display.push(withStatus);
         }
-        // 即将到来（>1分钟前）
-        else if (withStatus.status === ArcStatus.UPCOMING) {
+        // 即将到来（包括所有未开始的弧段）
+        else if (withStatus.status === ArcStatus.UPCOMING || withStatus.status === ArcStatus.PRE_APPROACH) {
           acc.upcoming.push(withStatus);
-          // 只显示即将到来的弧段（最多4条）
-          if (acc.display.length < maxDisplayCount) {
+          // PRE_APPROACH 状态需要显示连线
+          if (withStatus.status === ArcStatus.PRE_APPROACH) {
+            acc.display.push(withStatus);
+          } else if (acc.display.length < maxDisplayCount) {
+            // UPCOMING 状态最多显示 maxDisplayCount 条用于连线
             acc.display.push(withStatus);
           }
         }
-        // 入境前1分钟内、出境后1分钟内
-        else if (shouldShowArcConnection(withStatus.status)) {
-          // 将缓冲期的弧段添加到显示列表
-          if (withStatus.status === ArcStatus.PRE_APPROACH) {
-            acc.display.push(withStatus);
-          } else if (withStatus.status === ArcStatus.POST_EXIT) {
-            acc.display.push(withStatus);
-          }
+        // 出境后1分钟内
+        else if (withStatus.status === ArcStatus.POST_EXIT) {
+          acc.display.push(withStatus);
         }
 
         return acc;

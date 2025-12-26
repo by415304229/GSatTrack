@@ -119,6 +119,25 @@ export const formatTimeRange = (
 };
 
 /**
+ * 格式化倒计时为 mm:ss 格式（紧凑版本）
+ * 用于显示距离开始时间的倒计时
+ * @param milliseconds 毫秒数
+ * @returns 格式化后的文本，如 "05:30" 或 "1h05m"
+ */
+export const formatCountdownShort = (milliseconds: number): string => {
+  const absMs = Math.abs(milliseconds);
+  const seconds = Math.floor(absMs / 1000);
+  const minutes = Math.floor(seconds / 60);
+
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    return `${hours}h${minutes % 60}m`;
+  }
+
+  return `${minutes.toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
+};
+
+/**
  * 计算弧段详细状态（包含1分钟缓冲期）
  * @param arc 弧段数据
  * @param currentTime 当前时间
@@ -212,4 +231,23 @@ export const getArcConnectionColor = (
     default:
       return 'transparent';
   }
+};
+
+/**
+ * 格式化剩余时间为 mm:ss 格式（紧凑版本）
+ * 用于显示弧段结束倒计时
+ * @param timeToEnd 距离结束的毫秒数
+ * @returns 格式化后的文本，如 "05:30" 或 "1h05m"
+ */
+export const formatRemainingTimeShort = (timeToEnd: number): string => {
+  const absMs = Math.max(0, timeToEnd);
+  const seconds = Math.floor(absMs / 1000);
+  const minutes = Math.floor(seconds / 60);
+
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    return `${hours}h${minutes % 60}m`;
+  }
+
+  return `${minutes.toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
 };

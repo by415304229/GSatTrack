@@ -69,7 +69,7 @@ export const DashedLine3D: React.FC<DashedLine3DProps> = ({
   // 动画更新
   useFrame(() => {
     if (materialRef.current && isActive) {
-      dashOffsetRef.current -= 0.01;
+      dashOffsetRef.current -= 0.0075;  // 动画速度控制（值越小越慢）
       materialRef.current.dashOffset = dashOffsetRef.current;
     }
   });

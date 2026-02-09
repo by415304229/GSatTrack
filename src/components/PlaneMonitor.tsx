@@ -1,7 +1,8 @@
-import { Globe, Map } from 'lucide-react';
+import { Globe, Map as MapIcon, RotateCw } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
-import { type GroundStation, type OrbitalPlaneGroup, type SatellitePos } from '../types';
-import { calculateOrbitPath, getSatellitePosition } from '../utils/satMath';
+import { type GroundStation, type OrbitalPlaneGroup, type SatellitePos, type TLEData } from '../types';
+import { calculateCompleteOrbitPath, getSatellitePosition } from '../utils/satMath';
+import { extractOrbitPlaneParams, getOrbitPlaneId, groupSatellitesByOrbitPlane } from '../utils/orbitPlaneUtils';
 import Earth3D from './Earth3D';
 import Map2D from './Map2D';
 import SatelliteDetail from './SatelliteDetail';
@@ -49,9 +50,13 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
     const [selectedSatId, setSelectedSatId] = useState<string | null>(null);
     const [isTracking, setIsTracking] = useState<boolean>(false);
     const [trackedSatId, setTrackedSatId] = useState<string | null>(null);
+    const [cameraRotateWithEarth, setCameraRotateWithEarth] = useState<boolean>(false);
 
-    // Cache for orbit paths (recalculated less frequently than position)
-    const orbitCacheRef = useRef<Record<string, { path: { x: number, y: number, z: number, lat: number, lon: number }[], lastUpdated: number }>>({});
+    // Cache for orbit paths by orbit plane (instead of by satellite)
+    const orbitCacheRef = useRef<Record<string, {
+        ecef: { x: number, y: number, z: number, lat: number, lon: number }[];
+        lastUpdated: number;
+    }>>({});
     // Cache for current satellite positions to avoid unnecessary re-renders
     const currentSatellitesRef = useRef<SatellitePos[]>([]);
 
@@ -59,35 +64,58 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
     useEffect(() => {
         if (!active) return;
 
-        const positions = group.tles
-            .filter(tle => selectedSatellites.size === 0 || selectedSatellites.has(tle.satId)) // 过滤选中的卫星
-            .map((tle, idx) => {
-                // Use simulatedTime instead of new Date()
-                const pos = getSatellitePosition({ line1: tle.line1!, line2: tle.line2!, satId: tle.satId!, name: tle.name, displayName: tle.displayName, updatedAt: new Date() }, simulatedTime);
+        // 按轨道面对 TLE 进行分组
+        const filteredTles = group.tles.filter(tle =>
+            selectedSatellites.size === 0 || selectedSatellites.has(tle.satId)
+        );
+
+        const planeGroups = groupSatellitesByOrbitPlane(filteredTles);
+
+        // 预先为所有轨道面计算（或从缓存获取）完整闭合轨道线
+        const baseCacheTime = 5000;
+        const cacheTime = Math.max(1000, Math.min(10000, baseCacheTime / Math.max(1, timeRate || 1)));
+        const timeMs = simulatedTime.getTime();
+
+        // 存储每个轨道面的轨道路径（确保同一轨道面的所有卫星共享同一个数组引用）
+        const orbitPathsByPlane = new Map<string, {
+            ecef: { x: number, y: number, z: number, lat: number, lon: number }[];
+        }>();
+
+        for (const [planeId, tles] of planeGroups.entries()) {
+            const cache = orbitCacheRef.current[planeId];
+
+            // 检查缓存是否过期
+            if (!cache || Math.abs(timeMs - cache.lastUpdated) > cacheTime) {
+                // 缓存过期，使用代表卫星重新计算完整轨道
+                const representativeTle = tles[0];
+                const orbitData = calculateCompleteOrbitPath(representativeTle, simulatedTime);
+                orbitCacheRef.current[planeId] = { ...orbitData, lastUpdated: timeMs };
+                orbitPathsByPlane.set(planeId, orbitData);
+            } else {
+                // 使用缓存的轨道
+                orbitPathsByPlane.set(planeId, { ecef: cache.ecef });
+            }
+        }
+
+        const positions: SatellitePos[] = [];
+
+        // 遍历每个轨道面
+        let planeIndex = 0;
+        for (const [planeId, tles] of planeGroups.entries()) {
+            const orbitPath = orbitPathsByPlane.get(planeId)?.ecef;
+            const planeColor = ORBIT_COLORS[planeIndex % ORBIT_COLORS.length];
+
+            // 为该轨道面的每颗卫星分配位置和轨道
+            for (const tle of tles) {
+                const pos = getSatellitePosition(tle, simulatedTime);
                 if (pos) {
-                    // 所有卫星都计算轨道，不再限制数量
-                    const satId = tle.satId;
-                    const cache = orbitCacheRef.current[satId];
-
-                    // 根据时间倍速动态调整缓存时间 - 倍速越高，缓存时间越短
-                    // 基础缓存时间5秒，根据倍速调整，最小1秒，最大10秒
-                    const baseCacheTime = 5000; // 5秒基础缓存时间
-                    const cacheTime = Math.max(1000, Math.min(10000, baseCacheTime / Math.max(1, timeRate || 1)));
-
-                    // Recalculate orbit if cache expired or time jumped significantly
-                    const timeMs = simulatedTime.getTime();
-                    if (!cache || Math.abs(timeMs - cache.lastUpdated) > cacheTime) {
-                        // Pass simulatedTime to orbit calculator with orbit window
-                        const path = calculateOrbitPath({ line1: tle.line1!, line2: tle.line2!, satId: tle.satId!, name: tle.name, updatedAt: new Date() }, simulatedTime, orbitWindowMinutes);
-                        orbitCacheRef.current[satId] = { path, lastUpdated: timeMs };
-                        pos.orbitPath = path;
-                    } else {
-                        pos.orbitPath = cache.path;
-                    }
-                    pos.color = ORBIT_COLORS[idx % ORBIT_COLORS.length];
+                    pos.orbitPath = orbitPath || [];
+                    pos.color = planeColor;
+                    positions.push(pos);
                 }
-                return pos;
-            }).filter(p => p !== null) as SatellitePos[];
+            }
+            planeIndex++;
+        }
 
         // Only update state if satellites have changed significantly
         // 动态计算位置变化阈值 - 倍速越低，阈值越小，确保平滑更新
@@ -162,9 +190,24 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
             <div className="flex-1 min-h-0">
                 {viewMode === '3d' && (
                     <div className="relative flex flex-col h-full">
-                        <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-black/70 border border-slate-800 px-3 py-1 rounded-sm backdrop-blur-md pointer-events-none">
+                        <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-black/70 border border-slate-800 px-3 py-1 rounded-sm backdrop-blur-md">
                             <Globe size={14} className="text-cyan-400" />
                             <span className="text-[10px] font-bold text-slate-200 tracking-widest font-mono">3D 可视化</span>
+                            {/* 相机跟随地球自转开关 */}
+                            <button
+                                onClick={() => setCameraRotateWithEarth(!cameraRotateWithEarth)}
+                                className={`ml-2 flex items-center gap-1.5 px-2 py-1 rounded-sm border transition-all ${
+                                    cameraRotateWithEarth
+                                        ? 'bg-cyan-900/50 border-cyan-700 text-cyan-400'
+                                        : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-700/50'
+                                }`}
+                                title={cameraRotateWithEarth ? "关闭相机跟随地球自转" : "开启相机跟随地球自转"}
+                            >
+                                <RotateCw size={12} className={cameraRotateWithEarth ? "animate-[spin_10s_linear_infinite]" : ""} />
+                                <span className="text-[10px] font-mono">
+                                    {cameraRotateWithEarth ? "跟随地球" : "固定视角"}
+                                </span>
+                            </button>
                         </div>
                         <div className="flex-1 bg-[#020617]">
                             <Earth3D
@@ -180,6 +223,7 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
                                 saaBoundary={saaBoundary}
                                 showChinaBorder={showChinaBorder}
                                 showSAA={showSAA}
+                                cameraRotateWithEarth={cameraRotateWithEarth}
                             />
                         </div>
                     </div>
@@ -187,8 +231,8 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
 
                 {viewMode === '2d' && (
                     <div className="relative flex flex-col h-full">
-                        <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-black/70 border border-slate-800 px-3 py-1 rounded-sm backdrop-blur-md pointer-events-none">
-                            <Map size={14} className="text-cyan-400" />
+                        <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-black/70 border border-slate-800 px-3 py-1 rounded-sm backdrop-blur-md">
+                            <MapIcon size={14} className="text-cyan-400" />
                             <span className="text-[10px] font-bold text-slate-200 tracking-widest font-mono">地面轨迹</span>
                         </div>
                         <div className="flex-1 bg-[#020617]">
@@ -211,9 +255,24 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
                 {viewMode === 'split' && (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 h-full">
                         <div className="relative flex flex-col border-b lg:border-b-0 lg:border-r border-slate-800">
-                            <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-black/70 border border-slate-800 px-3 py-1 rounded-sm backdrop-blur-md pointer-events-none">
+                            <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-black/70 border border-slate-800 px-3 py-1 rounded-sm backdrop-blur-md">
                                 <Globe size={14} className="text-cyan-400" />
                                 <span className="text-[10px] font-bold text-slate-200 tracking-widest font-mono">3D VISUALIZER</span>
+                                {/* 相机跟随地球自转开关 */}
+                                <button
+                                    onClick={() => setCameraRotateWithEarth(!cameraRotateWithEarth)}
+                                    className={`ml-2 flex items-center gap-1.5 px-2 py-1 rounded-sm border transition-all ${
+                                        cameraRotateWithEarth
+                                            ? 'bg-cyan-900/50 border-cyan-700 text-cyan-400'
+                                            : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-700/50'
+                                    }`}
+                                    title={cameraRotateWithEarth ? "关闭相机跟随地球自转" : "开启相机跟随地球自转"}
+                                >
+                                    <RotateCw size={12} className={cameraRotateWithEarth ? "animate-[spin_10s_linear_infinite]" : ""} />
+                                    <span className="text-[10px] font-mono">
+                                        {cameraRotateWithEarth ? "跟随地球" : "固定视角"}
+                                    </span>
+                                </button>
                             </div>
                             <div className="flex-1 bg-[#020617]">
                                 <Earth3D
@@ -229,12 +288,13 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
                                     saaBoundary={saaBoundary}
                                     showChinaBorder={showChinaBorder}
                                     showSAA={showSAA}
+                                    cameraRotateWithEarth={cameraRotateWithEarth}
                                 />
                             </div>
                         </div>
                         <div className="relative flex flex-col">
-                            <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-black/70 border border-slate-800 px-3 py-1 rounded-sm backdrop-blur-md pointer-events-none">
-                                <Map size={14} className="text-cyan-400" />
+                            <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-black/70 border border-slate-800 px-3 py-1 rounded-sm backdrop-blur-md">
+                                <MapIcon size={14} className="text-cyan-400" />
                                 <span className="text-[10px] font-bold text-slate-200 tracking-widest font-mono">GROUND TRACK</span>
                             </div>
                             <div className="flex-1 bg-[#020617]">

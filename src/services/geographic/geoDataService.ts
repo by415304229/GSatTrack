@@ -4,6 +4,7 @@
  */
 
 import type { GeographicBoundary, GeoJSONData } from '../../types/geographic.types';
+import { GeographicFeatureType } from '../../types/geographic.types';
 import { DATA_SOURCE_CONFIG } from '../../config/geographic.config';
 
 class GeoDataService {
@@ -80,12 +81,12 @@ class GeoDataService {
     return {
       id: name,
       name,
-      type: 'border',
+      type: GeographicFeatureType.BORDER,
       coordinates: allCoordinates,
       style: {
-        color: '#ef4444',
-        opacity: 0.8,
-        strokeWidth: 2
+        color: '#00AAE1',
+        opacity: 1,
+        strokeWidth: 3
       }
     };
   }

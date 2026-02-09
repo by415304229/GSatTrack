@@ -4,8 +4,8 @@
  * 每个弧段独立显示为紧凑悬浮条，可单独关闭
  */
 
-import { Clock, Radio, X } from 'lucide-react';
-import React, { useState } from 'react';
+import { Clock, Radio } from 'lucide-react';
+import React from 'react';
 import type { ArcWithStatus } from '../../types/arc.types';
 import { extractCityName } from '../../utils/arcVisualization';
 import { formatRemainingTimeShort } from '../../utils/arcTimeUtils';
@@ -22,31 +22,22 @@ interface ArcForecastBannerProps {
  */
 interface ArcBarItemProps {
   arc: ArcWithStatus;
-  onClose: () => void;
 }
 
-const ArcBarItem: React.FC<ArcBarItemProps> = ({ arc, onClose }) => {
+const ArcBarItem: React.FC<ArcBarItemProps> = ({ arc }) => {
   const cityName = extractCityName(arc.siteName) || arc.siteName;
 
   return (
-    <div className="bg-[#020617]/60 backdrop-blur border border-emerald-500/30 rounded-lg px-4 py-2.5 shadow-lg">
-      <div className="flex items-center gap-8 text-xs">
-        <Radio size={12} className="text-emerald-400 animate-pulse shrink-0" />
-        <span className="text-slate-300 whitespace-nowrap">
-          {arc.satName}
-        </span>
-        <span className="text-emerald-400 whitespace-nowrap">
-          {cityName}
-        </span>
-        <span className="text-emerald-400 font-mono font-bold tabular-nums text-sm ml-auto">
+    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded px-3 py-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Radio size={10} className="text-emerald-400 animate-pulse shrink-0" />
+          <span className="text-xs text-slate-300">{arc.satName}入境</span>
+          <span className="text-xs text-emerald-400">{cityName}</span>
+        </div>
+        <span className="text-xs text-emerald-400 font-mono font-bold tabular-nums">
           {formatRemainingTimeShort(arc.timeToEnd)}
         </span>
-        <button
-          onClick={onClose}
-          className="p-0.5 hover:bg-slate-700/50 rounded-full transition-colors shrink-0"
-        >
-          <X size={10} className="text-slate-500 hover:text-slate-300" />
-        </button>
       </div>
     </div>
   );
@@ -62,51 +53,45 @@ export const ArcForecastBanner: React.FC<ArcForecastBannerProps> = ({
   isRefreshing = false,
   error = null
 }) => {
-  // 跟踪被用户关闭的弧段ID
-  const [hiddenArcIds, setHiddenArcIds] = useState<Set<number>>(new Set());
-
-  // 过滤已关闭的弧段
-  const displayArcs = activeArcs.filter(arc => !hiddenArcIds.has(arc.taskID));
-
-  // 关闭单个弧段
-  const handleCloseArc = (taskId: number) => {
-    setHiddenArcIds(prev => new Set(prev).add(taskId));
-  };
-
   // 如果没有数据且不在加载中，不显示
-  if (displayArcs.length === 0 && !isLoading && !error) {
+  if (activeArcs.length === 0 && !isLoading && !error) {
     return null;
   }
 
   // 只在首次加载（不是后台刷新）且没有数据时显示 loading
-  const shouldShowLoading = isLoading && !isRefreshing && displayArcs.length === 0;
+  const shouldShowLoading = isLoading && !isRefreshing && activeArcs.length === 0;
 
   return (
-    <div className="fixed top-20 left-1/2 -translate-x-1/2 z-20 flex flex-col gap-2">
-      {shouldShowLoading ? (
-        <div className="bg-[#020617]/60 backdrop-blur border border-slate-700/50 rounded-lg px-4 py-2 shadow-lg">
-          <span className="text-xs text-slate-500">加载中...</span>
-        </div>
-      ) : error ? (
-        <div className="bg-[#020617]/60 backdrop-blur border border-slate-700/50 rounded-lg px-4 py-2 shadow-lg">
-          <span className="text-xs text-red-400">{error}</span>
-        </div>
-      ) : displayArcs.length === 0 ? (
-        <div className="bg-[#020617]/60 backdrop-blur border border-slate-700/50 rounded-lg px-4 py-2 shadow-lg">
-          <div className="flex items-center gap-2 text-xs text-slate-600">
+    <div className="fixed top-[23rem] left-0 z-20 w-80 bg-[#020617]/60 backdrop-blur border border-emerald-500/30 rounded-t-none shadow-lg">
+      {/* 面板标题 */}
+      <div className="px-3 py-2 border-b border-emerald-500/20 flex items-center gap-2">
+        <Radio size={12} className="text-emerald-400 animate-pulse shrink-0" />
+        <span className="text-xs font-bold text-emerald-400">正在入境</span>
+        <span className="text-[10px] text-slate-500 ml-auto">
+          {activeArcs.length} 条活跃
+        </span>
+      </div>
+
+      {/* 弧段列表 */}
+      <div className="p-2 flex flex-col gap-1.5 max-h-64 overflow-y-auto">
+        {shouldShowLoading ? (
+          <div className="text-xs text-slate-500 text-center py-2">加载中...</div>
+        ) : error ? (
+          <div className="text-xs text-red-400 text-center py-2">{error}</div>
+        ) : activeArcs.length === 0 ? (
+          <div className="flex items-center justify-center gap-2 text-xs text-slate-600 py-2">
             <Clock size={10} />
             暂无活跃弧段
           </div>
-        </div>
-      ) : (
-        displayArcs.map((arc) => (
-          <ArcBarItem
-            key={arc.taskID}
-            arc={arc}
-            onClose={() => handleCloseArc(arc.taskID)}
-          />
-        ))
-      )}
+        ) : (
+          activeArcs.map((arc) => (
+            <ArcBarItem
+              key={arc.taskID}
+              arc={arc}
+            />
+          ))
+        )}
+      </div>
     </div>
   );
 };

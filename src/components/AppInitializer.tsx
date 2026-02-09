@@ -116,7 +116,7 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
 
     initialize();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startPolling, initError]); // 添加 startPolling 和 initError 依赖
+  }, [startPolling]); // 移除 initError 依赖，避免无限循环
 
   // 显示加载状态
   if (!isInitialized) {

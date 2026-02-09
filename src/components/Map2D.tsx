@@ -94,6 +94,8 @@ const Map2D: React.FC<map2dprops> = ({
     const containerRef = useRef<HTMLDivElement>(null);
     const imageRef = useRef<HTMLImageElement | null>(null);
     const lightsImageRef = useRef<HTMLImageElement | null>(null);
+    const satelliteImageRef = useRef<HTMLImageElement | null>(null);
+    const groundStationImageRef = useRef<HTMLImageElement | null>(null);
     const [hoverData, setHoverData] = useState<hoverdata | null>(null);
 
     // 弧段动画时间引用
@@ -130,6 +132,28 @@ const Map2D: React.FC<map2dprops> = ({
         };
         lightsImg.onerror = (error) => {
             console.error('Failed to load Earth lights image:', error);
+        };
+
+        // Load satellite icon image
+        const satImg = new Image();
+        satImg.crossOrigin = "anonymous";
+        satImg.src = '/data/stallite.jpg';
+        satImg.onload = () => {
+            satelliteImageRef.current = satImg;
+        };
+        satImg.onerror = (error) => {
+            console.error('Failed to load satellite icon image:', error);
+        };
+
+        // Load ground station icon image
+        const stationImg = new Image();
+        stationImg.crossOrigin = "anonymous";
+        stationImg.src = '/data/GroundStation.jpg';
+        stationImg.onload = () => {
+            groundStationImageRef.current = stationImg;
+        };
+        stationImg.onerror = (error) => {
+            console.error('Failed to load ground station icon image:', error);
         };
     }, []);
 
@@ -179,87 +203,22 @@ const Map2D: React.FC<map2dprops> = ({
 
             // Calculate and draw terminator line (day/night boundary)
             const terminatorResult = calculateTerminatorCoordinates(simulatedTime, w, h);
-            const { points: terminatorPoints, subsolarLon } = terminatorResult;
+            const { points: terminatorPoints } = terminatorResult;
 
             if (terminatorPoints.length > 0) {
-                // 计算太阳直射点和反太阳点索引
-                const sunIndex = Math.round(subsolarLon) + 180;
-                const clampedSunIndex = Math.max(0, Math.min(360, sunIndex));
-                const antiSunIndex = (clampedSunIndex + 180) % 361;
-
-                // 辅助函数：计算点到反太阳点的距离平方
-                const distToAntiSun = (i: number) => {
-                    const dx = terminatorPoints[i].x - terminatorPoints[antiSunIndex].x;
-                    const dy = terminatorPoints[i].y - terminatorPoints[antiSunIndex].y;
-                    return dx * dx + dy * dy;
-                };
-
-                // 追踪晨昏线上属于黑夜一侧的弧段
-                // 从反太阳点两侧开始，选择离反太阳点更远的相邻点
-                const nightArcIndices: number[] = [antiSunIndex];
-
-                // 向左追踪
-                let currentIdx = antiSunIndex;
-                for (let i = 0; i < 180; i++) {
-                    const nextIdx = (currentIdx - 1 + 361) % 361;
-                    const prevIdx = (currentIdx + 1) % 361;
-
-                    // 选择离反太阳点更远的点
-                    if (distToAntiSun(nextIdx) > distToAntiSun(prevIdx)) {
-                        nightArcIndices.unshift(nextIdx);
-                        currentIdx = nextIdx;
-                    } else {
-                        break;
-                    }
-                }
-
-                // 向右追踪
-                currentIdx = antiSunIndex;
-                for (let i = 0; i < 180; i++) {
-                    const nextIdx = (currentIdx + 1) % 361;
-                    const prevIdx = (currentIdx - 1 + 361) % 361;
-
-                    if (distToAntiSun(nextIdx) > distToAntiSun(prevIdx)) {
-                        nightArcIndices.push(nextIdx);
-                        currentIdx = nextIdx;
-                    } else {
-                        break;
-                    }
-                }
-
-                // 绘制黑夜区域的辅助函数
+                // 绘制黑夜区域（固定：上面亮，下面暗）
                 const drawNightRegion = (withLights: boolean = false) => {
                     ctx.beginPath();
 
-                    // 沿晨昏线黑夜弧段绘制
-                    const firstIdx = nightArcIndices[0];
-                    ctx.moveTo(terminatorPoints[firstIdx].x, terminatorPoints[firstIdx].y);
-
-                    for (let i = 1; i < nightArcIndices.length; i++) {
-                        const idx = nightArcIndices[i];
-                        ctx.lineTo(terminatorPoints[idx].x, terminatorPoints[idx].y);
+                    // 绘制完整的晨昏线
+                    ctx.moveTo(terminatorPoints[0].x, terminatorPoints[0].y);
+                    for (let i = 1; i < terminatorPoints.length; i++) {
+                        ctx.lineTo(terminatorPoints[i].x, terminatorPoints[i].y);
                     }
 
-                    // 沿地图边缘闭合路径
-                    const lastIdx = nightArcIndices[nightArcIndices.length - 1];
-                    const lastPoint = terminatorPoints[lastIdx];
-                    const firstPoint = terminatorPoints[firstIdx];
-
-                    // 根据弧段位置选择边缘路径
-                    if (firstPoint.x < lastPoint.x) {
-                        // 弧段偏左，沿地图边缘绕行
-                        ctx.lineTo(0, h);
-                        ctx.lineTo(0, 0);
-                        ctx.lineTo(w, 0);
-                        ctx.lineTo(w, h);
-                    } else {
-                        // 弧段偏右
-                        ctx.lineTo(w, h);
-                        ctx.lineTo(0, h);
-                        ctx.lineTo(0, 0);
-                        ctx.lineTo(w, 0);
-                    }
-
+                    // 连接到地图底部边缘，填充下方为黑夜
+                    ctx.lineTo(w, h);
+                    ctx.lineTo(0, h);
                     ctx.closePath();
 
                     if (withLights && lightsImageRef.current) {
@@ -270,36 +229,25 @@ const Map2D: React.FC<map2dprops> = ({
                         ctx.restore();
                     } else {
                         ctx.globalAlpha = 0.7;
-                        const centerX = terminatorPoints[antiSunIndex].x;
-                        const centerY = terminatorPoints[antiSunIndex].y;
-                        const maxRadius = Math.max(w, h) * 0.6;
-
-                        const gradient = ctx.createRadialGradient(
-                            centerX, centerY, 0,
-                            centerX, centerY, maxRadius
-                        );
-                        gradient.addColorStop(0, 'rgba(0, 0, 0, 0.3)');
-                        gradient.addColorStop(1, 'rgba(0, 0, 0, 0.7)');
-
-                        ctx.fillStyle = gradient;
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
                         ctx.fill();
                         ctx.globalAlpha = 1.0;
                     }
                 };
 
-                // 1. 绘制夜间灯光（使用clip）
+                // 1. 绘制夜间灯光
                 if (lightsImageRef.current) {
                     drawNightRegion(true);
                 }
 
-                // 2. 绘制夜间覆盖层（带渐变）
+                // 2. 绘制夜间覆盖层
                 drawNightRegion(false);
 
-                // 3. 绘制晨昏线
+                // 3. 绘制晨昏线（白色）
                 ctx.save();
                 ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
                 ctx.shadowBlur = 10;
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
 
@@ -440,12 +388,25 @@ const Map2D: React.FC<map2dprops> = ({
                 const x = ((station.lon + 180) / 360) * w;
                 const y = ((90 - station.lat) / 180) * h;
 
-                ctx.fillStyle = station.color;
-                ctx.beginPath();
-                ctx.moveTo(x, y);
-                ctx.lineTo(x - 4, y - 8);
-                ctx.lineTo(x + 4, y - 8);
-                ctx.fill();
+                // 使用图片绘制地面站图标
+                if (groundStationImageRef.current) {
+                    const iconSize = 16;
+                    ctx.drawImage(
+                        groundStationImageRef.current,
+                        x - iconSize / 2,
+                        y - iconSize / 2,
+                        iconSize,
+                        iconSize
+                    );
+                } else {
+                    // 备用方案：绘制三角形
+                    ctx.fillStyle = station.color;
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
+                    ctx.lineTo(x - 4, y - 8);
+                    ctx.lineTo(x + 4, y - 8);
+                    ctx.fill();
+                }
 
                 ctx.font = '9px monospace';
                 ctx.fillStyle = 'white';
@@ -460,19 +421,44 @@ const Map2D: React.FC<map2dprops> = ({
 
                 const isHovered = hoverData && hoverData.type === 'SAT' && hoverData.id === sat.id;
 
-                ctx.fillStyle = isHovered ? '#fff' : color;
-                ctx.beginPath();
-                ctx.arc(x, y, isHovered ? 4 : 2.5, 0, Math.PI * 2);
-                ctx.fill();
+                // 使用图片绘制卫星图标
+                const iconSize = isHovered ? 20 : 14;
+                if (satelliteImageRef.current) {
+                    ctx.drawImage(
+                        satelliteImageRef.current,
+                        x - iconSize / 2,
+                        y - iconSize / 2,
+                        iconSize,
+                        iconSize
+                    );
 
-                ctx.shadowColor = isHovered ? '#06b6d4' : color;
-                ctx.shadowBlur = isHovered ? 15 : 5;
-                ctx.strokeStyle = isHovered ? '#06b6d4' : 'rgba(255,255,255,0.8)';
-                ctx.lineWidth = isHovered ? 2 : 1;
-                ctx.beginPath();
-                ctx.arc(x, y, isHovered ? 8 : 4, 0, Math.PI * 2);
-                ctx.stroke();
-                ctx.shadowBlur = 0;
+                    // 添加悬停高亮效果
+                    if (isHovered) {
+                        ctx.shadowColor = '#06b6d4';
+                        ctx.shadowBlur = 15;
+                        ctx.strokeStyle = '#06b6d4';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.arc(x, y, iconSize / 2 + 3, 0, Math.PI * 2);
+                        ctx.stroke();
+                        ctx.shadowBlur = 0;
+                    }
+                } else {
+                    // 备用方案：绘制圆形
+                    ctx.fillStyle = isHovered ? '#fff' : color;
+                    ctx.beginPath();
+                    ctx.arc(x, y, isHovered ? 4 : 2.5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.shadowColor = isHovered ? '#06b6d4' : color;
+                    ctx.shadowBlur = isHovered ? 15 : 5;
+                    ctx.strokeStyle = isHovered ? '#06b6d4' : 'rgba(255,255,255,0.8)';
+                    ctx.lineWidth = isHovered ? 2 : 1;
+                    ctx.beginPath();
+                    ctx.arc(x, y, isHovered ? 8 : 4, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                }
             });
 
             animationFrameId = requestAnimationFrame(render);

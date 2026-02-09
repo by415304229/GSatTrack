@@ -1,6 +1,6 @@
 
 // @ts-nocheck
-import { OrbitControls, Stars } from '@react-three/drei';
+import { OrbitControls, Stars, useTexture } from '@react-three/drei';
 import { Canvas, useFrame, useLoader, useThree, type ThreeEvent } from '@react-three/fiber';
 import React, { Suspense, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
@@ -29,6 +29,8 @@ interface earthprops {
   saaBoundary?: SAABoundary | null;
   showChinaBorder?: boolean;
   showSAA?: boolean;
+  // 相机控制相关props
+  cameraRotateWithEarth?: boolean; // 相机是否跟随地球自转
 }
 
 const Atmosphere = () => {
@@ -194,19 +196,24 @@ const SatelliteInstances = ({
 }) => {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const tempObject = new THREE.Object3D();
-  const tempColor = new THREE.Color();
+  const { camera } = useThree();
+
+  const satelliteTexture = useLoader(THREE.TextureLoader, '/data/stallite.jpg');
+
   useFrame(() => {
-    if (!meshRef.current) return;
+    if (!meshRef.current || !camera) return;
     satellites.forEach((sat, i) => {
       tempObject.position.set(sat.x, sat.y, sat.z);
-      const scale = 0.012;
+      const scale = 0.04;
       tempObject.scale.set(scale, scale, scale);
+
+      // 让卫星图标始终面朝相机
+      tempObject.lookAt(camera.position);
+
       tempObject.updateMatrix();
       meshRef.current!.setMatrixAt(i, tempObject.matrix);
-      meshRef.current!.setColorAt(i, tempColor.set(sat.color || '#ffffff'));
     });
     meshRef.current.instanceMatrix.needsUpdate = true;
-    if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
   });
   const handlepointermove = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
@@ -245,48 +252,85 @@ const SatelliteInstances = ({
       onPointerOut={handlepointerout}
       onPointerDown={handlepointerdown}
     >
-      <sphereGeometry args={[1, 8, 8]} />
-      <meshBasicMaterial toneMapped={false} />
+      <planeGeometry args={[1, 1]} />
+      <meshBasicMaterial  
+        map={satelliteTexture}      // 应用你的卫星图标
+        transparent={true} 
+        alphaTest={0.1} 
+        side={THREE.DoubleSide}
+        toneMapped={false} 
+      />
     </instancedMesh>
+  );
+};
+
+const GroundStationMarker = ({ station, onHover }: { station: GroundStation, onHover: (data: hoverdata | null) => void }) => {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const groundStationTexture = useLoader(THREE.TextureLoader, '/data/GroundStation.jpg');
+
+  const pos = latLonToScene(station.lat, station.lon, R);
+  const scale = 0.04;
+
+  // 创建一个临时对象来计算正确的朝向
+  const tempObject = new THREE.Object3D();
+  tempObject.position.set(pos.x, pos.y, pos.z);
+
+  // 让图标面朝该位置的上方向（垂直于地球表面）
+  // 先看向地球中心，然后反转180度，这样图标就是正的且平行于地球表面
+  tempObject.lookAt(0, 0, 0);  // 看向地心
+  tempObject.rotateY(Math.PI);   // 旋转180度，让图标正面朝外
+
+  // 沿法线方向向外偏移，避免图标一半陷在地球里
+  const normal = new THREE.Vector3(pos.x, pos.y, pos.z).normalize();
+  const offset = 0.002;  // 稍微浮在地球表面上方
+  const adjustedPos = {
+    x: pos.x + normal.x * offset,
+    y: pos.y + normal.y * offset,
+    z: pos.z + normal.z * offset
+  };
+
+  tempObject.position.set(adjustedPos.x, adjustedPos.y, adjustedPos.z);
+
+  return (
+    <mesh
+      ref={meshRef}
+      position={tempObject.position}
+      scale={[scale, scale, scale]}
+      quaternion={tempObject.quaternion}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        onHover({ id: station.id, name: station.name, type: 'STATION', x: e.clientX, y: e.clientY });
+        document.body.style.cursor = 'pointer';
+      }}
+      onPointerOut={() => {
+        onHover(null);
+        document.body.style.cursor = 'default';
+      }}
+    >
+      <planeGeometry args={[1, 1]} />
+      <meshBasicMaterial
+        map={groundStationTexture}
+        transparent={true}
+        alphaTest={0.1}
+        side={THREE.DoubleSide}
+        toneMapped={false}
+      />
+    </mesh>
   );
 };
 
 const GroundStationMarkers = ({ stations, onHover }: { stations: GroundStation[], onHover: (data: hoverdata | null) => void }) => {
   return (
     <group>
-      {stations.map(station => {
-        const pos = latLonToScene(station.lat, station.lon, R);
-        return (
-          <group key={station.id} position={[pos.x, pos.y, pos.z]}>
-            {/* Base */}
-            <mesh
-              onPointerOver={(e) => {
-                e.stopPropagation();
-                onHover({ id: station.id, name: station.name, type: 'STATION', x: e.clientX, y: e.clientY });
-                document.body.style.cursor = 'pointer';
-              }}
-              onPointerOut={() => {
-                onHover(null);
-                document.body.style.cursor = 'default';
-              }}
-            >
-              <cylinderGeometry args={[0.005, 0.001, 0.05, 6]} />
-              <meshBasicMaterial color={station.color} />
-            </mesh>
-            {/* Pulse */}
-            <mesh position={[0, 0.025, 0]}>
-              <sphereGeometry args={[0.008, 8, 8]} />
-              <meshBasicMaterial color={station.color} opacity={0.6} transparent />
-            </mesh>
-          </group>
-        )
-      })}
+      {stations.map(station => (
+        <GroundStationMarker key={station.id} station={station} onHover={onHover} />
+      ))}
     </group>
-  )
+  );
 }
 
 // 创建轨道线路组件 - 使用 React Three Fiber 声明式 API
-const OrbitLine: React.FC<{ path: { x: number, y: number, z: number }[], color: string }> = ({ path, color }) => {
+const OrbitLine: React.FC<{ path: { x: number, y: number, z: number }[] }> = ({ path }) => {
   // 创建缓冲区几何
   const geometry = new THREE.BufferGeometry();
   const positions = new Float32Array(path.length * 3);
@@ -304,11 +348,11 @@ const OrbitLine: React.FC<{ path: { x: number, y: number, z: number }[], color: 
     <line>
       <bufferGeometry attach="geometry" {...geometry} />
       <lineBasicMaterial
-        color={color}
-        opacity={0.4}
+        color="#10b981"
+        opacity={0.6}
         transparent
         depthWrite={false}
-        linewidth={1}
+        linewidth={2}
       />
     </line>
   );
@@ -327,7 +371,9 @@ const Earth3D: React.FC<earthprops> = ({
   chinaBorder = null,
   saaBoundary = null,
   showChinaBorder = true,
-  showSAA = true
+  showSAA = true,
+  // 相机控制相关
+  cameraRotateWithEarth = false
 }) => {
   const [hoverData, setHoverData] = useState<hoverdata | null>(null);
 
@@ -375,6 +421,8 @@ const Earth3D: React.FC<earthprops> = ({
 
     useFrame(() => {
       try {
+        // 相机跟随地球自转功能现在由 RotatingGroup 组件负责
+        // CameraFollow 只负责卫星跟踪功能
         if (isTracking && trackedSatellite && camera) {
           // Comprehensive check for valid trackedSatellite object
           if (!trackedSatellite || typeof trackedSatellite !== 'object') {
@@ -459,42 +507,60 @@ const Earth3D: React.FC<earthprops> = ({
         />
         <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
 
-        <group>
-          <Suspense fallback={null}>
-            <Earthmesh sunPosition={sunPosition} />
-          </Suspense>
+        <Suspense fallback={null}>
+          <Earthmesh sunPosition={sunPosition} />
+        </Suspense>
 
-          {/* 地理图层 */}
-          {chinaBorder && showChinaBorder && (
-            <ChinaBorder3D boundary={chinaBorder} visible={showChinaBorder} />
-          )}
+        {/* 地理图层 */}
+        {chinaBorder && showChinaBorder && (
+          <ChinaBorder3D boundary={chinaBorder} visible={showChinaBorder} />
+        )}
 
-          {saaBoundary && showSAA && (
-            <SAABoundary3D saaBoundary={saaBoundary} visible={showSAA} />
-          )}
+        {saaBoundary && showSAA && (
+          <SAABoundary3D saaBoundary={saaBoundary} visible={showSAA} />
+        )}
 
-          <SatelliteInstances
-            satellites={satellites}
-            onHover={setHoverData}
-            onClick={onSatClick}
+        <SatelliteInstances
+          satellites={satellites}
+          onHover={setHoverData}
+          onClick={onSatClick}
+        />
+
+        <GroundStationMarkers stations={groundStations} onHover={setHoverData} />
+
+        {/* 弧段连线 */}
+        {arcConnections.length > 0 && arcVisualizationConfig?.enabled && (
+          <ArcConnections3D
+            connections={arcConnections}
+            lineWidth={arcVisualizationConfig.lineWidth}
           />
+        )}
 
-          <GroundStationMarkers stations={groundStations} onHover={setHoverData} />
+        {(() => {
+            // 收集唯一的轨道线，避免重复渲染
+            // 同一轨道面的卫星共享相同的 orbitPath 引用
+            const uniqueOrbits = new Map<object, { path: typeof satellites[0]['orbitPath'], color: string }>();
 
-          {/* 弧段连线 */}
-          {arcConnections.length > 0 && arcVisualizationConfig?.enabled && (
-            <ArcConnections3D
-              connections={arcConnections}
-              lineWidth={arcVisualizationConfig.lineWidth}
-            />
-          )}
+            for (const sat of satellites) {
+              if (sat.orbitPath && sat.orbitPath.length > 0) {
+                // 使用 orbitPath 对象引用作为唯一标识
+                if (!uniqueOrbits.has(sat.orbitPath)) {
+                  uniqueOrbits.set(sat.orbitPath, {
+                    path: sat.orbitPath,
+                    color: sat.color || '#ffffff'
+                  });
+                }
+              }
+            }
 
-          {satellites.map((sat, index) => (
-            sat.orbitPath && sat.orbitPath.length > 0 && (
-              <OrbitLine key={`orbit-${sat.id || index}`} path={sat.orbitPath} color={sat.color || '#ffffff'} />
-            )
-          ))}
-        </group>
+            // 渲染唯一轨道线（ECEF坐标系，固定不动）
+            return Array.from(uniqueOrbits.values()).map((orbit, index) => (
+              <OrbitLine
+                key={`orbit-${index}`}
+                path={orbit.path!}
+              />
+            ));
+          })()}
 
         <OrbitControls
           enablePan={false}

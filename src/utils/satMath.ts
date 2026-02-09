@@ -175,7 +175,15 @@ export const calculateTerminatorCoordinates = (time: Date, width: number, height
 
 export const getSatellitePosition = (tle: TLEData, date: Date): { id: string; name: string; displayName?: string; x: number; y: number; z: number; lat: number; lon: number; alt: number; velocity: number; orbitPath?: { x: number, y: number, z: number, lat: number, lon: number }[]; color?: string; tle?: TLEData } | null => {
   try {
-    const satrec = satellite.twoline2satrec(tle.line1, tle.line2);
+    // 兼容不同的 TLE 字段名
+    const line1 = tle.line1 || (tle as any).tle1;
+    const line2 = tle.line2 || (tle as any).tle2;
+
+    if (!line1 || !line2) {
+      return null;
+    }
+
+    const satrec = satellite.twoline2satrec(line1, line2);
 
     // Propagate
     const positionAndVelocity = satellite.propagate(satrec, date);
@@ -296,3 +304,83 @@ export const calculateOrbitPath = (tle: TLEData, startTime: Date = new Date(), o
     return [];
   }
 }
+
+/**
+ * 计算完整的闭合轨道（一个完整周期）
+ * 用于显示同一轨道面上所有卫星共享的完整轨道环
+ *
+ * 返回ECEF（地固系）中的轨道坐标，直接用于场景渲染
+ */
+export const calculateCompleteOrbitPath = (
+  tle: TLEData,
+  startTime: Date = new Date()
+): {
+  ecef: { x: number; y: number; z: number; lat: number; lon: number }[];
+} => {
+  try {
+    // 兼容不同的 TLE 字段名
+    const line1 = tle.line1 || (tle as any).tle1;
+    const line2 = tle.line2 || (tle as any).tle2;
+
+    if (!line1 || !line2) {
+      return { ecef: [] };
+    }
+
+    const satrec = satellite.twoline2satrec(line1, line2);
+    const points: { x: number; y: number; z: number; lat: number; lon: number }[] = [];
+
+    // Check if satrec is valid
+    if (!satrec || !satrec.no || isNaN(satrec.no)) {
+      return { ecef: [] };
+    }
+
+    const scale = 1 / EARTH_RADIUS_KM;
+
+    // Calculate Exact Period
+    let periodMinutes = 95;
+    if (satrec.no > 0) {
+      periodMinutes = (2 * Math.PI) / satrec.no;
+    }
+
+    // 使用初始时间的 GMST 来转换所有轨道点，确保轨道在 ECEF 坐标系中是闭合的
+    const baseGmst = satellite.gstime(startTime);
+
+    // 计算完整的一个周期
+    const totalMinutes = periodMinutes;
+    const steps = 360; // 每度一个点，确保平滑
+
+    for (let i = 0; i <= steps; i++) {
+      const fraction = i / steps;
+      const minutesFromStart = fraction * totalMinutes;
+      const timeOffsetMs = minutesFromStart * 60000;
+
+      const t = new Date(startTime.getTime() + timeOffsetMs);
+
+      const pv = satellite.propagate(satrec, t);
+
+      if (pv.position && typeof pv.position !== 'boolean') {
+        const pEci = pv.position as satellite.EciVec3<number>;
+
+        // ECI -> ECEF (使用初始时间的 GMST)
+        const pEcf = satellite.eciToEcf(pEci, baseGmst);
+        const scenePos = mapEcefToScene(pEcf, scale);
+        const pGd = satellite.eciToGeodetic(pEci, baseGmst);
+
+        if (!isNaN(scenePos.x) && !isNaN(scenePos.y) && !isNaN(scenePos.z) &&
+          !isNaN(pGd.latitude) && !isNaN(pGd.longitude)) {
+          points.push({
+            x: scenePos.x,
+            y: scenePos.y,
+            z: scenePos.z,
+            lat: satellite.degreesLat(pGd.latitude),
+            lon: satellite.degreesLong(pGd.longitude)
+          });
+        }
+      }
+    }
+
+    return { ecef: points };
+  } catch (error) {
+    return { ecef: [] };
+  }
+};

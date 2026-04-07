@@ -72,7 +72,38 @@ export const useArcMonitor = (
 
     try {
       const arcs = await arcService.fetchUpcomingArcs(undefined, lookAheadHours);
-      setRawArcs(arcs);
+
+      // 增量合并：保留当前活跃且未过期的弧段，防止刷新时丢失正在入境的弧段
+      setRawArcs(prevArcs => {
+        const nowDate = simulatedTimeRef.current || new Date();
+        const now = nowDate.getTime();
+
+        // 找出当前活跃且未过期的弧段（模拟时间在 startTime 和 endTime 之间）
+        const activeAndNotExpired = prevArcs.filter(arc => {
+          const endTime = new Date(arc.endTime).getTime();
+          const startTime = new Date(arc.startTime).getTime();
+          return now >= startTime && now <= endTime;
+        });
+
+        // 合并：新数据 + 保留的活跃弧段（去重）
+        const arcMap = new Map<string, ArcSegment>();
+
+        // 先添加新获取的数据
+        arcs.forEach(arc => {
+          const key = String(arc.taskID);
+          arcMap.set(key, arc);
+        });
+
+        // 再添加保留的活跃弧段（如果新数据中没有）
+        activeAndNotExpired.forEach(arc => {
+          const key = String(arc.taskID);
+          if (!arcMap.has(key)) {
+            arcMap.set(key, arc);
+          }
+        });
+
+        return Array.from(arcMap.values());
+      });
     } catch (err: any) {
       setError(err.message || '获取弧段数据失败');
       console.error('[useArcMonitor] 获取弧段数据失败:', err);

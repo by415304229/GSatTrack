@@ -34,9 +34,6 @@ export const useGeographicLayers = (
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 存储上一次的卫星数量，避免因数组引用变化导致的频繁触发
-  const [prevSatellitesLength, setPrevSatellitesLength] = useState(0);
-
   // 加载数据
   const loadData = useCallback(async () => {
     try {
@@ -57,20 +54,26 @@ export const useGeographicLayers = (
     }
   }, []);
 
-  // 检测SAA事件
+  // 检测SAA事件（使用定时器定期检测）
   useEffect(() => {
     if (!config.monitorSAAEntry || !saaBoundary) {
       setSaaEvents([]);
       return;
     }
 
-    // 深度比较：只在卫星数量真正变化时才触发检测
-    if (satellites.length !== prevSatellitesLength) {
+    const checkSAA = () => {
       const events = saaDataService.detectSAAEntries(satellites);
       setSaaEvents(events);
-      setPrevSatellitesLength(satellites.length);
-    }
-  }, [satellites.length, prevSatellitesLength, config.monitorSAAEntry, saaBoundary, satellites]);
+    };
+
+    // 立即检测一次
+    checkSAA();
+
+    // 每秒检测一次
+    const intervalId = setInterval(checkSAA, 1000);
+
+    return () => clearInterval(intervalId);
+  }, [config.monitorSAAEntry, saaBoundary, satellites]);
 
   // 初始加载
   useEffect(() => {

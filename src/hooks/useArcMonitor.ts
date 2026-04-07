@@ -55,6 +55,9 @@ export const useArcMonitor = (
   const UPDATE_INTERVAL = 200; // 状态更新间隔（ms），降低到200ms使倒计时更流畅
   const rafIdRef = useRef<number | null>(null); // 存储 requestAnimationFrame ID
 
+  // 使用 ref 存储最新的 simulatedTime，避免频繁的 effect 重新执行
+  const simulatedTimeRef = useRef<Date | undefined>(simulatedTime);
+
   // 刷新弧段数据
   const refresh = useCallback(async () => {
     if (!enabled) return;
@@ -94,11 +97,16 @@ export const useArcMonitor = (
     }
   }, [enabled, refresh]);
 
+  // 同步 simulatedTime 到 ref，避免频繁的 effect 重新执行
+  useEffect(() => {
+    simulatedTimeRef.current = simulatedTime;
+  }, [simulatedTime]);
+
   // 实时更新弧段状态（基于模拟时间）
   useEffect(() => {
     const updateArcStatus = () => {
-      // 使用模拟时间或系统时间
-      const nowDate = simulatedTime || new Date();
+      // 使用 ref 中的最新模拟时间，避免闭包问题
+      const nowDate = simulatedTimeRef.current || new Date();
       const now = nowDate.getTime();
 
       // 限制更新频率
@@ -157,7 +165,7 @@ export const useArcMonitor = (
         cancelAnimationFrame(rafIdRef.current);
       }
     };
-  }, [rawArcs, maxDisplayCount, simulatedTime]);
+  }, [rawArcs, maxDisplayCount]); // 移除 simulatedTime 依赖，使用 simulatedTimeRef 获取最新值
 
   return {
     upcomingArcs: processedArcs.upcoming,

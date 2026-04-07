@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import useSatelliteManager from '../hooks/useSatelliteManager';
 import { useTimeSimulation } from '../hooks/useTimeSimulation';
 import useArcMonitor from '../hooks/useArcMonitor';
@@ -105,9 +105,9 @@ const HomePage: React.FC = () => {
         autoStart: true
     });
 
-    // 地理图层（需要在 simTime 定义之后）
-    const geographicLayers = useGeographicLayers(
-        groups.flatMap(group =>
+    // 缓存卫星位置计算，避免每次渲染都重新计算
+    const satellitePositions = useMemo(() => {
+        return groups.flatMap(group =>
             (group.tles || [])
                 .filter(tle => selectedSatellites.has(tle.satId))
                 .map(tle => {
@@ -122,8 +122,11 @@ const HomePage: React.FC = () => {
                     return pos;
                 })
                 .filter(p => p !== null)
-        )
-    );
+        );
+    }, [groups, selectedSatellites, simTime.getTime()]);
+
+    // 地理图层（使用缓存的卫星位置）
+    const geographicLayers = useGeographicLayers(satellitePositions);
 
     // 弧段监控（传入模拟时间）
     const arcMonitor = useArcMonitor({

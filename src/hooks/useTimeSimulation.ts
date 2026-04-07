@@ -93,7 +93,10 @@ export const useTimeSimulation = (options: UseTimeSimulationOptions = {}): UseTi
         lastSimulatedTimeRef.current = now;
         // 重置lastRealTimeRef
         lastRealTimeRef.current = Date.now();
-    }, []);
+        // 确保时间继续推进，重置暂停状态
+        setIsPaused(false);
+        isPausedRef.current = false;
+    }, [setIsPaused]);
 
     // 设置模拟速率
     const setRate = useCallback((rate: number) => {

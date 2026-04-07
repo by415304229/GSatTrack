@@ -3,7 +3,7 @@
  * 管理国境线和SAA区域的加载和状态
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { GeographicBoundary, SAABoundary, SAAEntryEvent, GeographicLayerConfig } from '../types/geographic.types';
 import type { SatellitePos } from '../types';
 import geoDataService from '../services/geographic/geoDataService';
@@ -34,6 +34,9 @@ export const useGeographicLayers = (
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // 存储上一次的卫星数量，避免因数组引用变化导致的频繁触发
+  const [prevSatellitesLength, setPrevSatellitesLength] = useState(0);
+
   // 加载数据
   const loadData = useCallback(async () => {
     try {
@@ -61,9 +64,13 @@ export const useGeographicLayers = (
       return;
     }
 
-    const events = saaDataService.detectSAAEntries(satellites);
-    setSaaEvents(events);
-  }, [satellites, config.monitorSAAEntry, saaBoundary]);
+    // 深度比较：只在卫星数量真正变化时才触发检测
+    if (satellites.length !== prevSatellitesLength) {
+      const events = saaDataService.detectSAAEntries(satellites);
+      setSaaEvents(events);
+      setPrevSatellitesLength(satellites.length);
+    }
+  }, [satellites.length, prevSatellitesLength, config.monitorSAAEntry, saaBoundary, satellites]);
 
   // 初始加载
   useEffect(() => {

@@ -72,9 +72,14 @@ class ArcService {
     const now = new Date();
     const endTime = new Date(now.getTime() + hours * 3600000);
 
+    // 向前扩展查询时间范围，确保能获取到已经开始但未结束的活跃弧段
+    // 假设最长入境弧段不超过 2 小时
+    const lookBackHours = 2;
+    const startTime = new Date(now.getTime() - lookBackHours * 3600000);
+
     return this.fetchArcs({
       scid,
-      startTimeBegin: now.toISOString(),
+      startTimeBegin: startTime.toISOString(),
       startTimeEnd: endTime.toISOString(),
       pageSize: 200
     });

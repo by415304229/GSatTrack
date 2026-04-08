@@ -10,7 +10,7 @@ import type { GeographicLayerConfig } from '../types/geographic.types';
  */
 export const GEOGRAPHIC_CONFIG: GeographicLayerConfig = {
   showChinaBorder: true,
-  showSAA: true,
+  showSAA: false,  // 默认不显示SAA区域，保留进入监控告警
   chinaBorderColor: '#ef4444',  // 红色
   saaFillColor: '#fbbf24',       // 黄色
   saaStrokeColor: '#fbbf24',

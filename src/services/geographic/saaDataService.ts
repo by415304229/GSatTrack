@@ -107,7 +107,7 @@ class SAADataService {
       if (this.isPointInSAA(point)) {
         return {
           satelliteId: satellite.id,
-          satelliteName: satellite.name,
+          satelliteName: satellite.displayName || satellite.name,
           entryTime: new Date(Date.now() + i * 1000),
           position: { lat: point.lat, lon: point.lon, alt: satellite.alt || 0 }
         };
@@ -141,7 +141,7 @@ class SAADataService {
       if (this.isSatelliteInSAA(satellite)) {
         events.push({
           satelliteId: satellite.id,
-          satelliteName: satellite.name,
+          satelliteName: satellite.displayName || satellite.name,
           entryTime: new Date(),
           position: {
             lat: satellite.lat,

@@ -142,7 +142,8 @@ export const calculateTerminatorCoordinates = (time: Date, width: number, height
       // Special case: sun is at one of the poles
       lat = delta > 0 ? 90 - Math.abs(lonDiff) * 180 / Math.PI : -90 + Math.abs(lonDiff) * 180 / Math.PI;
     } else {
-      const tanLat = Math.cos(lonDiff) / Math.tan(deltaRad);
+      // 标准晨昏线公式: tan(lat) = -cos(lon - subsolarLon) / tan(subsolarLat)
+      const tanLat = -Math.cos(lonDiff) / Math.tan(deltaRad);
       lat = Math.atan(tanLat) * 180 / Math.PI;
     }
 

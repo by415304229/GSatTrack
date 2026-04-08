@@ -206,7 +206,7 @@ const Map2D: React.FC<map2dprops> = ({
             const { points: terminatorPoints } = terminatorResult;
 
             if (terminatorPoints.length > 0) {
-                // 绘制黑夜区域（固定：上面亮，下面暗）
+                // 绘制黑夜区域
                 const drawNightRegion = (withLights: boolean = false) => {
                     ctx.beginPath();
 
@@ -216,9 +216,18 @@ const Map2D: React.FC<map2dprops> = ({
                         ctx.lineTo(terminatorPoints[i].x, terminatorPoints[i].y);
                     }
 
-                    // 连接到地图底部边缘，填充下方为黑夜
-                    ctx.lineTo(w, h);
-                    ctx.lineTo(0, h);
+                    // 根据太阳赤纬符号决定填充方向
+                    // sunDeclination > 0：太阳直射北半球，黑夜在晨昏线下方（南方）
+                    // sunDeclination < 0：太阳直射南半球，黑夜在晨昏线上方（北方）
+                    if (terminatorResult.sunDeclination > 0) {
+                        // 填充晨昏线下方为黑夜
+                        ctx.lineTo(w, h);
+                        ctx.lineTo(0, h);
+                    } else {
+                        // 填充晨昏线上方为黑夜
+                        ctx.lineTo(w, 0);
+                        ctx.lineTo(0, 0);
+                    }
                     ctx.closePath();
 
                     if (withLights && lightsImageRef.current) {

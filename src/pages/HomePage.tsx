@@ -8,6 +8,8 @@ import speechNotificationService from '../services/speechNotificationService';
 import { loadArcVisibilityConfig } from '../utils/storage';
 import { getSatellitePosition } from '../utils/satMath';
 import type { ArcVisualizationConfig } from '../types/arc.types';
+import type { SatelliteLabelConfig } from '../types/label.types';
+import { loadLabelConfig, saveLabelConfig } from '../config/label.config';
 
 import Header from '../components/Header';
 import MainContent from '../components/MainContent';
@@ -50,6 +52,19 @@ const HomePage: React.FC = () => {
             flowSpeed: 2.0
         };
     });
+
+    // 卫星标签配置
+    const [labelConfig, setLabelConfig] = useState<SatelliteLabelConfig>(() => {
+        return loadLabelConfig();
+    });
+
+    const handleLabelConfigChange = (config: Partial<SatelliteLabelConfig>) => {
+        setLabelConfig(prev => {
+            const updated = { ...prev, ...config };
+            saveLabelConfig(updated);
+            return updated;
+        });
+    };
 
     const [stations, setStations] = useState<Array<{
         id: string;
@@ -233,6 +248,7 @@ const HomePage: React.FC = () => {
                 saaBoundary={geographicLayers.saaBoundary}
                 showChinaBorder={geographicLayers.config.showChinaBorder}
                 showSAA={geographicLayers.config.showSAA}
+                labelConfig={labelConfig}
             />
 
             {/* 弧段预报横幅 */}
@@ -285,6 +301,8 @@ const HomePage: React.FC = () => {
                 onArcVisualizationConfigChange={handleArcVisualizationConfigChange}
                 geographicConfig={geographicLayers.config}
                 onGeographicConfigChange={geographicLayers.updateConfig}
+                labelConfig={labelConfig}
+                onLabelConfigChange={handleLabelConfigChange}
             />
 
             <TLEImportModal

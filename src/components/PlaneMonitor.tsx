@@ -8,6 +8,7 @@ import Map2D from './Map2D';
 import SatelliteDetail from './SatelliteDetail';
 import type { ArcSegment, ArcVisualizationConfig } from '../types/arc.types';
 import type { GeographicBoundary, SAABoundary } from '../types/geographic.types';
+import type { SatelliteLabelConfig } from '../types/label.types';
 
 const ORBIT_COLORS = ['#06b6d4', '#3b82f6'];
 
@@ -28,6 +29,8 @@ interface PlaneMonitorProps {
     saaBoundary?: SAABoundary | null;
     showChinaBorder?: boolean;
     showSAA?: boolean;
+    // 卫星标签配置
+    labelConfig?: SatelliteLabelConfig;
 }
 
 export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
@@ -44,7 +47,8 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
     chinaBorder,
     saaBoundary,
     showChinaBorder,
-    showSAA
+    showSAA,
+    labelConfig
 }) => {
     const [satellites, setSatellites] = useState<SatellitePos[]>([]);
     const [selectedSatId, setSelectedSatId] = useState<string | null>(null);
@@ -224,6 +228,7 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
                                 showChinaBorder={showChinaBorder}
                                 showSAA={showSAA}
                                 cameraRotateWithEarth={cameraRotateWithEarth}
+                                labelConfig={labelConfig}
                             />
                         </div>
                     </div>
@@ -289,6 +294,7 @@ export const PlaneMonitor: React.FC<PlaneMonitorProps> = ({
                                     showChinaBorder={showChinaBorder}
                                     showSAA={showSAA}
                                     cameraRotateWithEarth={cameraRotateWithEarth}
+                                    labelConfig={labelConfig}
                                 />
                             </div>
                         </div>

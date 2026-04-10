@@ -3,6 +3,7 @@ import React from 'react';
 import { PlaneMonitor } from './PlaneMonitor';
 import type { ArcSegment, ArcVisualizationConfig } from '../types/arc.types';
 import type { GeographicBoundary, SAABoundary } from '../types/geographic.types';
+import type { SatelliteLabelConfig } from '../types/label.types';
 
 interface MainContentProps {
   loading: boolean;
@@ -37,6 +38,8 @@ interface MainContentProps {
   saaBoundary?: SAABoundary | null;
   showChinaBorder?: boolean;
   showSAA?: boolean;
+  // 卫星标签配置
+  labelConfig?: SatelliteLabelConfig;
 }
 
 const MainContent: React.FC<MainContentProps> = ({
@@ -53,7 +56,8 @@ const MainContent: React.FC<MainContentProps> = ({
   chinaBorder,
   saaBoundary,
   showChinaBorder,
-  showSAA
+  showSAA,
+  labelConfig
 }) => {
   if (loading) {
     return (
@@ -95,6 +99,7 @@ const MainContent: React.FC<MainContentProps> = ({
             saaBoundary={saaBoundary}
             showChinaBorder={showChinaBorder}
             showSAA={showSAA}
+            labelConfig={labelConfig}
           />
         </div>
       </div>

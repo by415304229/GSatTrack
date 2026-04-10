@@ -11,6 +11,8 @@ import { calculateArcConnections3D } from '../utils/arcVisualization';
 import type { ArcSegment, ArcVisualizationConfig } from '../types/arc.types';
 import { ChinaBorder3D, SAABoundary3D } from './geographic';
 import type { GeographicBoundary, SAABoundary } from '../types/geographic.types';
+import { SatelliteLabelContainer } from './labels';
+import type { SatelliteLabelConfig } from '../types/label.types';
 
 // Earth Radius in scene units
 const R = 1;
@@ -30,7 +32,9 @@ interface earthprops {
   showChinaBorder?: boolean;
   showSAA?: boolean;
   // 相机控制相关props
-  cameraRotateWithEarth?: boolean; // 相机是否跟随地球自转
+  cameraRotateWithEarth?: boolean;
+  // 标签配置
+  labelConfig?: SatelliteLabelConfig;
 }
 
 const Atmosphere = () => {
@@ -373,7 +377,9 @@ const Earth3D: React.FC<earthprops> = ({
   showChinaBorder = true,
   showSAA = true,
   // 相机控制相关
-  cameraRotateWithEarth = false
+  cameraRotateWithEarth = false,
+  // 标签配置
+  labelConfig
 }) => {
   const [hoverData, setHoverData] = useState<hoverdata | null>(null);
 
@@ -561,6 +567,14 @@ const Earth3D: React.FC<earthprops> = ({
               />
             ));
           })()}
+
+        {/* 卫星标签 */}
+        {labelConfig?.enabled && (
+          <SatelliteLabelContainer
+            satellites={satellites}
+            config={labelConfig}
+          />
+        )}
 
         <OrbitControls
           enablePan={false}

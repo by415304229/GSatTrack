@@ -8,7 +8,7 @@ import { Clock, Radio } from 'lucide-react';
 import React from 'react';
 import type { ArcWithStatus } from '../../types/arc.types';
 import { extractCityName } from '../../utils/arcVisualization';
-import { formatRemainingTimeShort } from '../../utils/arcTimeUtils';
+import { formatRemainingTimeShort, formatTimeRange } from '../../utils/arcTimeUtils';
 
 interface ArcForecastBannerProps {
   activeArcs: ArcWithStatus[];
@@ -32,11 +32,16 @@ const ArcBarItem: React.FC<ArcBarItemProps> = ({ arc }) => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Radio size={10} className="text-emerald-400 animate-pulse shrink-0" />
-          <span className="text-xs text-slate-300">{arc.satName}入境</span>
-          <span className="text-xs text-emerald-400">{cityName}</span>
+          <span className="text-xs text-slate-300">{arc.satName}</span>
         </div>
         <span className="text-xs text-emerald-400 font-mono font-bold tabular-nums">
           {formatRemainingTimeShort(arc.timeToEnd)}
+        </span>
+      </div>
+      <div className="flex items-center justify-between mt-1">
+        <span className="text-[10px] text-emerald-400">{cityName}</span>
+        <span className="text-[9px] text-slate-600 font-mono">
+          {formatTimeRange(arc.startTime, arc.endTime)}
         </span>
       </div>
     </div>

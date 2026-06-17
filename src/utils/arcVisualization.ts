@@ -9,6 +9,7 @@ import { ArcStatus } from '../types/arc.types';
 import satelliteMappingService from '../services/satelliteMappingService';
 import { latLonToScene } from './satMath';
 import { calculateArcDetailedStatus, shouldShowArcConnection, getArcConnectionColor } from './arcTimeUtils';
+import { parseApiTime } from './time';
 
 /**
  * 3D点坐标
@@ -120,8 +121,9 @@ export const isArcActive = (
   arc: ArcSegment,
   currentTime: Date
 ): boolean => {
-  const start = new Date(arc.startTime).getTime();
-  const end = new Date(arc.endTime).getTime();
+  const start = parseApiTime(arc.startTime)?.getTime();
+  const end = parseApiTime(arc.endTime)?.getTime();
+  if (start == null || end == null) return false;
   const now = currentTime.getTime();
   return now >= start && now <= end;
 };

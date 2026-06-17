@@ -5,6 +5,7 @@
 import { getHttpClient } from './http/httpClient';
 import type { ArcSegment, ArcQueryParams, PagedList } from './types/api.types';
 import { env } from '../config/env.config';
+import { parseApiTime, toApiLocalString } from '../utils/time';
 
 class ArcService {
   private httpClient = getHttpClient();
@@ -79,8 +80,8 @@ class ArcService {
 
     return this.fetchArcs({
       scid,
-      startTimeBegin: startTime.toISOString(),
-      startTimeEnd: endTime.toISOString(),
+      startTimeBegin: toApiLocalString(startTime),
+      startTimeEnd: toApiLocalString(endTime),
       pageSize: 200
     });
   }
@@ -95,8 +96,9 @@ class ArcService {
     const now = new Date();
 
     const activeArcs = arcs.filter(arc => {
-      const startTime = new Date(arc.startTime);
-      const endTime = new Date(arc.endTime);
+      const startTime = parseApiTime(arc.startTime);
+      const endTime = parseApiTime(arc.endTime);
+      if (!startTime || !endTime) return false;
       return now >= startTime && now <= endTime;
     });
 

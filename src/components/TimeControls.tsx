@@ -19,13 +19,11 @@ export const TimeControls: React.FC<TimeControlsProps> = ({
     onRateChange,
     onResetToRealTime
 }) => {
-    // Calculate Beijing time (UTC+8)
-    const beijingTime = new Date(time.getTime() + 8 * 60 * 60 * 1000);
-
-    // Format date: YYYY-MM-DD
-    const dateStr = beijingTime.toISOString().substring(0, 10);
-    // Format time: HH:MM:SS
-    const timeStr = beijingTime.toISOString().substring(11, 19);
+    // time 已是浏览器本地时间（北京时间 UTC+8），直接取本地时间分量即可。
+    // 历史 bug：曾误以为 time 是 UTC 而手动 +8 小时，导致显示快 8 小时（实际变成 UTC+16）。
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const dateStr = `${time.getFullYear()}-${pad(time.getMonth() + 1)}-${pad(time.getDate())}`;
+    const timeStr = `${pad(time.getHours())}:${pad(time.getMinutes())}:${pad(time.getSeconds())}`;
 
     return (
         <div className="flex items-center bg-[#0B1120] border border-slate-800 rounded-md px-5 py-2.5">

@@ -6,6 +6,7 @@
 import type { ArcWithStatus } from '../types/arc.types';
 import type { SpeechConfig } from '../types/speech.types';
 import speechService from './speechService';
+import { parseApiTime } from '../utils/time';
 
 /**
  * 已通知的弧段记录
@@ -35,7 +36,8 @@ class SpeechNotificationService {
 
     arcs.forEach(arc => {
       const arcId = arc.taskID;
-      const startTime = new Date(arc.startTime).getTime();
+      const startTime = parseApiTime(arc.startTime)?.getTime();
+      if (startTime == null) return;
       const timeUntilStart = startTime - now;
 
       // 检查是否需要播报（在提前通知时间窗口内，且未播报过）

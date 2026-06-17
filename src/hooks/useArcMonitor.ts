@@ -9,6 +9,7 @@ import type { ArcSegment } from '../services/types/api.types';
 import type { ArcWithStatus } from '../types/arc.types';
 import { ArcStatus } from '../types/arc.types';
 import { calculateArcDetailedStatus, sortArcsByTime, shouldShowArcConnection } from '../utils/arcTimeUtils';
+import { parseApiTime } from '../utils/time';
 
 interface UseArcMonitorOptions {
   lookAheadHours?: number;
@@ -80,8 +81,9 @@ export const useArcMonitor = (
 
         // 找出当前活跃且未过期的弧段（模拟时间在 startTime 和 endTime 之间）
         const activeAndNotExpired = prevArcs.filter(arc => {
-          const endTime = new Date(arc.endTime).getTime();
-          const startTime = new Date(arc.startTime).getTime();
+          const endTime = parseApiTime(arc.endTime)?.getTime();
+          const startTime = parseApiTime(arc.startTime)?.getTime();
+          if (endTime == null || startTime == null) return false;
           return now >= startTime && now <= endTime;
         });
 

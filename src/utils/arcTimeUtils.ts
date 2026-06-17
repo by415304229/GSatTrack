@@ -5,6 +5,7 @@
 import type { ArcSegment } from '../services/types/api.types';
 import type { ArcWithStatus, ArcVisualizationConfig } from '../types/arc.types';
 import { ArcStatus } from '../types/arc.types';
+import { parseApiTime } from './time';
 
 /**
  * 1分钟的毫秒数
@@ -21,8 +22,11 @@ export const calculateArcStatus = (
   arc: ArcSegment,
   currentTime: Date
 ): ArcWithStatus => {
-  const startTime = new Date(arc.startTime);
-  const endTime = new Date(arc.endTime);
+  const startTime = parseApiTime(arc.startTime);
+  const endTime = parseApiTime(arc.endTime);
+  if (!startTime || !endTime) {
+    throw new Error(`[calculateArcStatus] 无效的弧段时间: startTime=${arc.startTime}, endTime=${arc.endTime}`);
+  }
   const now = currentTime.getTime();
 
   const timeToStart = startTime.getTime() - now;
@@ -58,8 +62,8 @@ export const sortArcsByTime = (
   arcs: ArcSegment[]
 ): ArcSegment[] => {
   return [...arcs].sort((a, b) => {
-    const aStart = new Date(a.startTime).getTime();
-    const bStart = new Date(b.startTime).getTime();
+    const aStart = parseApiTime(a.startTime)?.getTime() ?? 0;
+    const bStart = parseApiTime(b.startTime)?.getTime() ?? 0;
     return aStart - bStart;
   });
 };
@@ -106,8 +110,10 @@ export const formatTimeRange = (
   startTime: string | Date,
   endTime: string | Date
 ): string => {
-  const start = typeof startTime === 'string' ? new Date(startTime) : startTime;
-  const end = typeof endTime === 'string' ? new Date(endTime) : endTime;
+  // 字符串走 parseApiTime（去 Z），Date 直接使用
+  const start = typeof startTime === 'string' ? parseApiTime(startTime) : startTime;
+  const end = typeof endTime === 'string' ? parseApiTime(endTime) : endTime;
+  if (!start || !end) return '';
 
   const formatTime = (date: Date) => {
     const hours = date.getHours().toString().padStart(2, '0');
@@ -147,8 +153,11 @@ export const calculateArcDetailedStatus = (
   arc: ArcSegment,
   currentTime: Date
 ): ArcWithStatus => {
-  const startTime = new Date(arc.startTime);
-  const endTime = new Date(arc.endTime);
+  const startTime = parseApiTime(arc.startTime);
+  const endTime = parseApiTime(arc.endTime);
+  if (!startTime || !endTime) {
+    throw new Error(`[calculateArcDetailedStatus] 无效的弧段时间: startTime=${arc.startTime}, endTime=${arc.endTime}`);
+  }
   const now = currentTime.getTime();
 
   const startMs = startTime.getTime();

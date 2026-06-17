@@ -17,6 +17,9 @@ interface ImportMetaEnv {
   readonly VITE_CACHE_DURATION_ARC: string
   readonly VITE_CACHE_DURATION_SATELLITE: string
 
+  // 弧段查询最大返回条数
+  readonly VITE_ARC_MAX_RECORDS: string
+
   // 其他环境变量
   readonly VITE_DEBUG_MODE?: string
 }

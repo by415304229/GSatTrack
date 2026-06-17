@@ -17,6 +17,9 @@ export const env = {
   // 缓存时长（毫秒）
   CACHE_DURATION_ARC: Number(import.meta.env.VITE_CACHE_DURATION_ARC) || 300000,
   CACHE_DURATION_SATELLITE: Number(import.meta.env.VITE_CACHE_DURATION_SATELLITE) || 3600000,
+
+  // 弧段查询最大返回条数（防止分页拉取失控）
+  ARC_MAX_RECORDS: Number(import.meta.env.VITE_ARC_MAX_RECORDS) || 2000,
 };
 
 export default env;

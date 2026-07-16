@@ -4,7 +4,7 @@
  */
 export const env = {
   // API 配置
-  API_BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://172.24.28.5:5000/api/v1',
+  API_BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://172.24.27.134:5000/api/v1',
 
   // 自动登录凭证
   AUTO_LOGIN_USERNAME: import.meta.env.VITE_AUTO_LOGIN_USERNAME || 'admin',

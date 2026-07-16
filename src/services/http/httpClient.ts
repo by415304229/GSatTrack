@@ -231,7 +231,7 @@ let httpClientInstance: HttpClient | null = null;
 export const getHttpClient = (): HttpClient => {
   if (!httpClientInstance) {
     // 从环境变量获取 API 基础 URL
-    const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://172.24.28.5:5000/api/v1';
+    const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://172.24.27.134:5000/api/v1';
     httpClientInstance = new HttpClient(baseURL);
     console.log('[HttpClient] 初始化，baseURL:', baseURL);
   }

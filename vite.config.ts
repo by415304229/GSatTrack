@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => {
         // API 代理配置（用于跨域请求）
         proxy: {
           '/api': {
-            target: 'http://172.24.28.5:5000',
+            target: 'http://172.24.27.134:5000',
             changeOrigin: true,
             secure: false,
             ws: true,
